@@ -39,6 +39,6 @@ map_host_chan
    );
 ```
 
-The value passed into *reset\_n* is the combination of hard and function-level soft resets. The two code blocks above match the PIM's implementation. The PIM's internal logic uses the same [map\_fim\_pcie\_ss\_to\_pim\_host\_chan\(\)](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/ifc_classes/host_chan/native_axis_pcie_tlp/prims/gasket_pcie_ss/map_fim_pcie_ss_to_GROUP_host_chan.sv).
+The value passed into *reset\_n* is the combination of hard and function-level soft resets. The two code blocks above match the PIM's implementation. The PIM's internal logic uses the same [map\_fim\_pcie\_ss\_to\_pim\_host\_chan\(\)](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/ifc_classes/host_chan/native_axis_pcie_tlp/prims/gasket_pcie_ss/map_fim_pcie_ss_to_GROUP_host_chan.sv).
 
 Instead of the PIM's *ofs\_plat\_if\_tie\_off\_unused\(\)*, unused devices are tied off using the FIM's interfaces.

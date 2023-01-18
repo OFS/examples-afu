@@ -4,15 +4,15 @@ There are currently no code or sample AFUs for this section. It describes PIM pa
 
 ## Simulation-Time Error Checking
 
-Most PIM interfaces include automatic simulation-time checks for malformed encodings. See, for example, the validation block in [ofs\_plat\_avalon\_mem\_if](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/avalon/ofs_plat_avalon_mem_if.sv), which detects un-driven read and write signals. It also detects un-driven address and other control fields during read or write transactions.
+Most PIM interfaces include automatic simulation-time checks for malformed encodings. See, for example, the validation block in [ofs\_plat\_avalon\_mem\_if](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/avalon/ofs_plat_avalon_mem_if.sv), which detects un-driven read and write signals. It also detects un-driven address and other control fields during read or write transactions.
 
 ## Simulation-Time Logging
 
-Many PIM interfaces can emit transaction logs during simulation. Logging is disabled by default and is enabled by setting the LOG\_CLASS parameter in a specific instance. LOG\_CLASS is an enumeration defined in [ofs\_plat\_log\_pkg.sv](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/utils/ofs_plat_log_pkg.sv). Each entry in the enumeration corresponds to a transaction log file shared by all instances assigned to the class. Several examples in the tutorial discuss LOG\_CLASS and logging.
+Many PIM interfaces can emit transaction logs during simulation. Logging is disabled by default and is enabled by setting the LOG\_CLASS parameter in a specific instance. LOG\_CLASS is an enumeration defined in [ofs\_plat\_log\_pkg.sv](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/utils/ofs_plat_log_pkg.sv). Each entry in the enumeration corresponds to a transaction log file shared by all instances assigned to the class. Several examples in the tutorial discuss LOG\_CLASS and logging.
 
 ## Interface Parameterization
 
-The AXI and Avalon interfaces defined in the PIM are generic, with parameters used to set data width, address width, maximum burst size, etc. The PIM provides macros for managing parameters of particular interface instances: [ofs\_plat\_axi\_mem\_if.vh](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/axi/ofs_plat_axi_mem_if.vh), [ofs\_plat\_avalon\_mem\_if.vh](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/avalon/ofs_plat_avalon_mem_if.vh) (standard Avalon bus) and [ofs\_plat\_avalon\_mem\_rdwr\_if.vh](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/avalon/ofs_plat_avalon_mem_rdwr_if.vh) (separate read and write buses). These files are included automatically by the standard *ofs\_plat\_if.vh* wrapper.
+The AXI and Avalon interfaces defined in the PIM are generic, with parameters used to set data width, address width, maximum burst size, etc. The PIM provides macros for managing parameters of particular interface instances: [ofs\_plat\_axi\_mem\_if.vh](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/axi/ofs_plat_axi_mem_if.vh), [ofs\_plat\_avalon\_mem\_if.vh](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/avalon/ofs_plat_avalon_mem_if.vh) (standard Avalon bus) and [ofs\_plat\_avalon\_mem\_rdwr\_if.vh](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/avalon/ofs_plat_avalon_mem_rdwr_if.vh) (separate read and write buses). These files are included automatically by the standard *ofs\_plat\_if.vh* wrapper.
 
 All three interface's macros are basically the same. The following examples use AXI names. Avalon names are similar.
 
@@ -68,14 +68,14 @@ Neither AXI nor Avalon define fences or interrupts as part of the main interface
 
 The tutorial does have specific examples of fences or interrupts. Relatively simple examples do exist in the PIM's test suite:
 
-- AXI write fences (ofs\_plat\_host\_chan\_axi\_mem\_pkg::HC\_AXI\_UFLAG\_FENCE) in [host\_chan\_params](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_params/hw/rtl/host_mem_rdwr_engine_axi.sv).
-- AXI interrupts (ofs\_plat\_host\_chan\_axi\_mem\_pkg::HC\_AXI\_UFLAG\_INTERRUPT) in [host\_chan\_intr](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_intr/hw/rtl/axi/afu.sv).
-- Avalon write fences (ofs\_plat\_host\_chan\_avalon\_mem\_pkg::HC\_AVALON\_UFLAG\_FENCE) in [host\_chan\_params](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_params/hw/rtl/host_mem_rdwr_engine_avalon.sv).
-- Avalon interrupts (ofs\_plat\_host\_chan\_avalon\_mem\_pkg::HC\_AVALON\_UFLAG\_INTERRUPT) in [host\_chan\_intr](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_intr/hw/rtl/avalon/afu.sv).
+- AXI write fences (ofs\_plat\_host\_chan\_axi\_mem\_pkg::HC\_AXI\_UFLAG\_FENCE) in [host\_chan\_params](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_params/hw/rtl/host_mem_rdwr_engine_axi.sv).
+- AXI interrupts (ofs\_plat\_host\_chan\_axi\_mem\_pkg::HC\_AXI\_UFLAG\_INTERRUPT) in [host\_chan\_intr](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_intr/hw/rtl/axi/afu.sv).
+- Avalon write fences (ofs\_plat\_host\_chan\_avalon\_mem\_pkg::HC\_AVALON\_UFLAG\_FENCE) in [host\_chan\_params](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_params/hw/rtl/host_mem_rdwr_engine_avalon.sv).
+- Avalon interrupts (ofs\_plat\_host\_chan\_avalon\_mem\_pkg::HC\_AVALON\_UFLAG\_INTERRUPT) in [host\_chan\_intr](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_intr/hw/rtl/avalon/afu.sv).
 
 ## Atomic Memory Updates
 
-OFS implementations starting with Agilex support atomic transactions. The PIM offers encoding of atomic memory updates only in the AXI-MM host channel. Neither Avalon-MM nor CCI-P are currently supported. The tutorial does not currently have an example of atomic transactions, mainly because AXI5 defines an encoding for atomics and the other standards do not. An example can be found in the PIM's test suite in [host\_chan\_atomic](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_atomic/hw/rtl/axi/host_mem_atomic_engine_axi.sv).
+OFS implementations starting with Agilex support atomic transactions. The PIM offers encoding of atomic memory updates only in the AXI-MM host channel. Neither Avalon-MM nor CCI-P are currently supported. The tutorial does not currently have an example of atomic transactions, mainly because AXI5 defines an encoding for atomics and the other standards do not. An example can be found in the PIM's test suite in [host\_chan\_atomic](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_tests/host_chan_atomic/hw/rtl/axi/host_mem_atomic_engine_axi.sv).
 
 All flavors of 32 and 64 bit PCIe atomic transactions are available:
 - ofs_plat_axi_mem_pkg::ATOMIC_ADD
