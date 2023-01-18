@@ -14,7 +14,7 @@ The example is driven by software in the [sw](sw) directory. Build and run it us
 
 ## AXI
 
-The AXI variant instantiates a vector of [ofs\_plat\_axi\_mem\_if](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/axi/ofs_plat_axi_mem_if.sv) interfaces, one for each memory bank, in [axi/ofs\_plat\_afu.sv](hw/rtl/axi/ofs_plat_afu.sv). The *ofs\_plat\_axi\_mem\_if* interface is the same definition used for AXI DMA streams connected to host memory in the [hello world](../hello_world) example. The module *ofs\_plat\_local\_mem\_as\_axi\_mem* instantiates a bridge from the platform's base interface to AXI. The PIM provides the same portable module name on any platform, independent of the actual protocol of the base interface. The AFU source is thus portable across platforms, even when platforms change the native local memory interface.
+The AXI variant instantiates a vector of [ofs\_plat\_axi\_mem\_if](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/axi/ofs_plat_axi_mem_if.sv) interfaces, one for each memory bank, in [axi/ofs\_plat\_afu.sv](hw/rtl/axi/ofs_plat_afu.sv). The *ofs\_plat\_axi\_mem\_if* interface is the same definition used for AXI DMA streams connected to host memory in the [hello world](../hello_world) example. The module *ofs\_plat\_local\_mem\_as\_axi\_mem* instantiates a bridge from the platform's base interface to AXI. The PIM provides the same portable module name on any platform, independent of the actual protocol of the base interface. The AFU source is thus portable across platforms, even when platforms change the native local memory interface.
 
 In addition to the protocol translation, the example commands *ofs\_plat\_local\_mem\_as\_axi\_mem* to instantiate a clock crossing from each memory bank's native clock to the host channel's clock by setting the ADD\_CLOCK\_CROSSING parameter and specifying a target clock. Most PIM shims offer crossing to AFU-specified clock domains. In this local memory example, all AFU interfaces operate in a common clock domain.
 
@@ -34,7 +34,7 @@ $ afu_synth_setup --source hw/rtl/sources_axi.txt build_synth
 
 ## Avalon
 
-The Avalon variant has very similar structure to the AXI variant. It instantiates a vector of [ofs\_plat\_avalon\_mem\_if](https://github.com/OPAE/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/avalon/ofs_plat_avalon_mem_if.sv) Avalon interfaces in [avalon/ofs\_plat\_afu.sv](hw/rtl/avalon/ofs_plat_afu.sv) and maps the platform's local memory base interface by invoking *ofs\_plat\_local\_mem\_as\_avalon\_mem*. The logic in [avalon/afu\_top.sv](hw/rtl/avalon/afu_top.sv) passes commands from the FSM to the local memory Avalon interfaces.
+The Avalon variant has very similar structure to the AXI variant. It instantiates a vector of [ofs\_plat\_avalon\_mem\_if](https://github.com/OFS/ofs-platform-afu-bbb/blob/master/plat_if_develop/ofs_plat_if/src/rtl/base_ifcs/avalon/ofs_plat_avalon_mem_if.sv) Avalon interfaces in [avalon/ofs\_plat\_afu.sv](hw/rtl/avalon/ofs_plat_afu.sv) and maps the platform's local memory base interface by invoking *ofs\_plat\_local\_mem\_as\_avalon\_mem*. The logic in [avalon/afu\_top.sv](hw/rtl/avalon/afu_top.sv) passes commands from the FSM to the local memory Avalon interfaces.
 
 Like the AXI code, the Avalon example adds a clock crossing to each local memory bank by passing a target clock to *ofs\_plat\_local\_mem\_as\_avalon\_mem* and setting ADD\_CLOCK\_CROSSING.
 
