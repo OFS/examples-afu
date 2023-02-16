@@ -4,7 +4,9 @@ Two equivalent implementations of *hello\_world* are instantiated here. A TLP-ba
 
 The [matching software](sw) is enhanced to detect all instances of the AFU. The TLP-based version writes "Hello world TLP!" instead of just "Hello world!". \(Note that ASE currently detects only the AFU connected to port 0 and will only show the TLP-based AFU. Others are present but not visible to ASE. The AFUs are visible on hardware when multiple VFs are available.\)
 
-Details of the TLP implementation are in the [next section](../../03_afu_main/hello_world/). We will focus here on hybrid mapping to PIM interfaces in [afu\_main\(\)](hw/rtl/afu_main.sv). There are two extra blocks required. First, a PIM host channel must be declared. This is the same type as *plat\_ifc.host\_chan.ports\[p\]* in the PIM-only variant:
+The top-level module, [afu_main\(\)](hw/rtl/afu_main.sv), is implemented with macros so that it compiles on as many OFS variants as possible. OFS releases starting in early 2023 moved a PF/VF MUX inside afu_main\(\) in order to minimize the number of wires entering the PR region. Due to the complexity of the PF/VF MUX wrapper, the FIM's default afu_main\(\) became common code. AFU-specific code now begins in port_afu_instances\(\). That design pattern is used here. The entire afu_main.sv here becomes empty when the SHARED_AFU_MAIN_TO_PORT_AFU_INSTANCES macro is defined.
+
+Details of the TLP implementation are in the [next section](../../03_afu_main/hello_world/). We will focus here on hybrid mapping to PIM interfaces in [port_afu_instances\(\)](hw/rtl/port_afu_instances.sv). There are two extra blocks required. First, a PIM host channel must be declared. This is the same type as *plat\_ifc.host\_chan.ports\[p\]* in the PIM-only variant:
 
 ```SystemVerilog
 ofs_plat_host_chan_axis_pcie_tlp_if
@@ -28,7 +30,7 @@ map_fim_pcie_ss_to_pim_host_chan
 map_host_chan
   (
    .clk(clk),
-   .reset_n(port_rst_n_q2[p]),
+   .reset_n(port_rst_n[p]),
 
    .pcie_ss_tx_a_st(afu_axi_tx_a_if[p]),
    .pcie_ss_tx_b_st(afu_axi_tx_b_if[p]),

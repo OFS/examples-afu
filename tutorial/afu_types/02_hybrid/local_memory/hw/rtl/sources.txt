@@ -7,6 +7,7 @@ C:../../../../01_pim_ifc/local_memory/hw/rtl/common/sources.txt
 ../../../../03_afu_main/hello_world/hw/rtl/null_afu.sv
 
 afu_main.sv
+port_afu_instances.sv
 
 # Pointer to software:
 # sw:../../../../01_pim_ifc/local_memory/sw/hello_mem_afu

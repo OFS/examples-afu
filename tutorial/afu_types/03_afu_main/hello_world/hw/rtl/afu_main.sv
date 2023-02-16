@@ -1,22 +1,21 @@
-// Copyright (C) 2022 Intel Corporation
+// Copyright 2022 Intel Corporation
 // SPDX-License-Identifier: MIT
 
-// The PIM's top-level wrapper is included only because it defines the
-// platform macros used below to make the afu_main() port list slightly
-// more portable. Except for those macros it is not needed for the non-PIM
-// AFUs.
+// Disable this afu_main() when the FIM provides a shared version of the module.
+// A shared afu_main() instantiates port_afu_instances(), just like the one here.
+`ifndef SHARED_AFU_MAIN_TO_PORT_AFU_INSTANCES
+
 `include "ofs_plat_if.vh"
 
 // Merge HSSI macros from various platforms into a single AFU_MAIN_HAS_HSSI
-`ifdef INCLUDE_HSSI_AND_NOT_CVL
+`ifdef INCLUDE_HSSI
   `define AFU_MAIN_HAS_HSSI 1
 `endif
 `ifdef PLATFORM_FPGA_FAMILY_S10
-  `ifdef INCLUDE_HSSI
+  `ifdef INCLUDE_HE_HSSI
     `define AFU_MAIN_HAS_HSSI 1
   `endif
 `endif
-`define AFU_MAIN_HAS_HSSI 1
 
 // ========================================================================
 //
@@ -72,51 +71,48 @@ module afu_main
    // returning the tag value from the write request. AFUs that do not
    // need local write commits may ignore this port, but must set
    // tready to 1.
-   pcie_ss_axis_if.sink          afu_axi_rx_b_if [PG_NUM_PORTS-1:0],
+   pcie_ss_axis_if.sink          afu_axi_rx_b_if [PG_NUM_PORTS-1:0]
 
    `ifdef INCLUDE_DDR4
       // Local memory
-      ofs_fim_emif_axi_mm_if.user ext_mem_if [NUM_MEM_CH-1:0],
+     ,ofs_fim_emif_axi_mm_if.user ext_mem_if [NUM_MEM_CH-1:0]
    `endif
    `ifdef PLATFORM_FPGA_FAMILY_S10
       // S10 uses AVMM for DDR
-      ofs_fim_emif_avmm_if.user   ext_mem_if [NUM_MEM_CH-1:0],
+     ,ofs_fim_emif_avmm_if.user   ext_mem_if [NUM_MEM_CH-1:0]
    `endif
 
    `ifdef AFU_MAIN_HAS_HSSI
-      ofs_fim_hssi_ss_tx_axis_if.client hssi_ss_st_tx [MAX_ETH_CH-1:0],
+     ,ofs_fim_hssi_ss_tx_axis_if.client hssi_ss_st_tx [MAX_ETH_CH-1:0],
       ofs_fim_hssi_ss_rx_axis_if.client hssi_ss_st_rx [MAX_ETH_CH-1:0],
       ofs_fim_hssi_fc_if.client         hssi_fc [MAX_ETH_CH-1:0],
-      input logic [MAX_ETH_CH-1:0]      i_hssi_clk_pll,
+      input logic [MAX_ETH_CH-1:0]      i_hssi_clk_pll
    `endif
 
     // S10 HSSI PTP interface
    `ifdef INCLUDE_PTP
-      ofs_fim_hssi_ptp_tx_tod_if.client       hssi_ptp_tx_tod [MAX_ETH_CH-1:0],
+     ,ofs_fim_hssi_ptp_tx_tod_if.client       hssi_ptp_tx_tod [MAX_ETH_CH-1:0],
       ofs_fim_hssi_ptp_rx_tod_if.client       hssi_ptp_rx_tod [MAX_ETH_CH-1:0],
       ofs_fim_hssi_ptp_tx_egrts_if.client     hssi_ptp_tx_egrts [MAX_ETH_CH-1:0],
-      ofs_fim_hssi_ptp_rx_ingrts_if.client    hssi_ptp_rx_ingrts [MAX_ETH_CH-1:0],
+      ofs_fim_hssi_ptp_rx_ingrts_if.client    hssi_ptp_rx_ingrts [MAX_ETH_CH-1:0]
    `endif
 
    // JTAG interface for PR region debug
    `ifdef PLATFORM_FPGA_FAMILY_S10
       // Old JTAG interface: just wires
-      input  logic               sr2pr_tms,
+     ,input  logic               sr2pr_tms,
       input  logic               sr2pr_tdi,
       output logic               pr2sr_tdo,
       input  logic               sr2pr_tck,
       input  logic               sr2pr_tckena
    `else
-      ofs_jtag_if.sink           remote_stp_jtag_if
+     ,ofs_jtag_if.sink           remote_stp_jtag_if
    `endif
-);
+   );
 
-
-    // ======================================================
-    //
+    //----------------------------------------------
     // Merge soft reset and power on reset
-    //
-    // ======================================================
+    //----------------------------------------------
 
     logic rst_n_q1 = 1'b0;
     logic [PG_NUM_PORTS-1:0] port_rst_n_q1 = {PG_NUM_PORTS{1'b0}};
@@ -128,114 +124,41 @@ module afu_main
 
     for (genvar p = 0; p < PG_NUM_PORTS; p = p + 1) begin : reg_rst
         always @(posedge clk) begin
-            port_rst_n_q1[p] <= port_rst_n[p];
-            port_rst_n_q2[p] <= port_rst_n_q1[p] && rst_n_q1;
+            port_rst_n_q1[p] <= port_rst_n[p] && rst_n_q1;
+            port_rst_n_q2[p] <= port_rst_n_q1[p];
         end
     end
 
 
-    // ======================================================
-    //
-    // Put a TLP-based hello world on ports 0 and 1
-    //
-    // ======================================================
+    //----------------------------------------------
+    // AFUs
+    //----------------------------------------------
 
-    localparam NUM_HELLO_PORTS = (PG_NUM_PORTS >= 2) ? 2 : 1;
+    // Instantiate port_afu_instances, using the same interface that the
+    // default afu_main() would use.
 
-    generate
-        for (genvar p = 0; p < NUM_HELLO_PORTS; p = p + 1)
-        begin : hello_afus
-            hello_world_tlp
-              #(
-                .PF_ID(PORT_PF_VF_INFO[p].pf_num),
-                .VF_ID(PORT_PF_VF_INFO[p].vf_num),
-                .VF_ACTIVE(PORT_PF_VF_INFO[p].vf_active)
-                )
-              hello_world_tlp
-               (
-                .clk,
-                .rst_n(port_rst_n_q2[p]),
-                .o_tx_if(afu_axi_tx_a_if[p]),
-                .o_tx_b_if(afu_axi_tx_b_if[p]),
-                .i_rx_if(afu_axi_rx_a_if[p]),
-                .i_rx_b_if(afu_axi_rx_b_if[p])
-                );
-        end
-    endgenerate
+    port_afu_instances
+      #(
+        .PG_NUM_PORTS(PG_NUM_PORTS),
+        .PORT_PF_VF_INFO(PORT_PF_VF_INFO),
+        .NUM_MEM_CH(NUM_MEM_CH),
+        .MAX_ETH_CH(MAX_ETH_CH)
+        )
+      port_afu_instances
+       (
+        .port_rst_n(port_rst_n_q2),
+
+        .*
+        );
 
 
-    // ======================================================
-    //
-    // Tie off any remaining PCIe ports with a NULL AFU
-    //
-    // ======================================================
-
-    generate
-        for (genvar p = 2; p < PG_NUM_PORTS; p = p + 1)
-        begin : null_afus
-            null_afu
-              #(
-                .PF_ID(PORT_PF_VF_INFO[p].pf_num),
-                .VF_ID(PORT_PF_VF_INFO[p].vf_num),
-                .VF_ACTIVE(PORT_PF_VF_INFO[p].vf_active)
-                )
-              null_afu
-               (
-                .clk,
-                .rst_n(port_rst_n_q2[p]),
-                .o_tx_if(afu_axi_tx_a_if[p]),
-                .o_tx_b_if(afu_axi_tx_b_if[p]),
-                .i_rx_if(afu_axi_rx_a_if[p]),
-                .i_rx_b_if(afu_axi_rx_b_if[p])
-                );
-        end
-    endgenerate
-
-
-    // ======================================================
-    //
-    // Tie off unused local memory
-    //
-    // ======================================================
-
-    for (genvar c=0; c<NUM_MEM_CH; c++) begin : mb
-     `ifdef INCLUDE_DDR4
-        assign ext_mem_if[c].awvalid = 1'b0;
-        assign ext_mem_if[c].wvalid = 1'b0;
-        assign ext_mem_if[c].arvalid = 1'b0;
-        assign ext_mem_if[c].bready = 1'b1;
-        assign ext_mem_if[c].rready = 1'b1;
-     `endif
-
-     `ifdef PLATFORM_FPGA_FAMILY_S10
-        assign ext_mem_if[c].write = 1'b0;
-        assign ext_mem_if[c].read = 1'b0;
-     `endif
-    end
-
-
-    // ======================================================
-    //
-    // Tie off unused HSSI
-    //
-    // ======================================================
-
-`ifdef AFU_MAIN_HAS_HSSI
-    for (genvar c=0; c<MAX_ETH_CH; c++) begin : hssi
-        assign hssi_ss_st_tx[c].tx = '0;
-        assign hssi_fc[c].tx_pause = 0;
-        assign hssi_fc[c].tx_pfc = 0;
-    end
-`endif
-
-
-    // ======================================================
-    //
+    //----------------------------------------------
     // Remote Debug JTAG IP instantiation
-    //
-    // ======================================================
+    //----------------------------------------------
 
     wire remote_stp_conf_reset = ~rst_n_q1;
     `include "ofs_fim_remote_stp_node.vh"
 
 endmodule : afu_main
+
+`endif //  `ifndef SHARED_AFU_MAIN_TO_PORT_AFU_INSTANCES

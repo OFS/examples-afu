@@ -1,5 +1,6 @@
 hello_world.json
 afu_main.sv
+port_afu_instances.sv
 
 hello_world_tlp.sv
 null_afu.sv

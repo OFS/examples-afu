@@ -1,5 +1,6 @@
 hello_world.json
 afu_main.sv
+port_afu_instances.sv
 
 # The implementation from the full PIM example is used. The afu_main() logic
 # uses the PIM to map the same interfaces.
