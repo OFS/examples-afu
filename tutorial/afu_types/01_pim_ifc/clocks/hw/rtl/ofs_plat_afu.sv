@@ -109,10 +109,12 @@ module ofs_plat_afu
     // for MMIO transactions.
     logic clk;
     assign clk = mmio64_to_afu.clk;
-    logic reset_n;
-    assign reset_n = mmio64_to_afu.reset_n;
+    logic reset_n = 1'b0;
+    always @(posedge clk) begin
+        reset_n <= mmio64_to_afu.reset_n;
+    end
 
-    logic reset_counter_n;
+    logic reset_counter_n, reset_counter_n_q;
     logic enable_counter;
 
     localparam N_COUNTER_BITS = 40;
@@ -132,7 +134,7 @@ module ofs_plat_afu
         .count(counter_pclk_value),
         .max_value(counter_max),
         .max_value_reached(max_value_reached),
-        .sync_reset_n(plat_ifc.clocks.pClk.reset_n & reset_counter_n),
+        .sync_reset_n(plat_ifc.clocks.pClk.reset_n & reset_counter_n_q),
         .enable(enable_counter)
     );
 
@@ -142,7 +144,7 @@ module ofs_plat_afu
         .count(counter_pclk_div2_value),
         .max_value('0),
         .max_value_reached(),
-        .sync_reset_n(plat_ifc.clocks.pClkDiv2.reset_n & reset_counter_n),
+        .sync_reset_n(plat_ifc.clocks.pClkDiv2.reset_n & reset_counter_n_q),
         .enable(enable_counter & ~max_value_reached)
     );
 
@@ -152,7 +154,7 @@ module ofs_plat_afu
         .count(counter_pclk_div4_value),
         .max_value('0),
         .max_value_reached(),
-        .sync_reset_n(plat_ifc.clocks.pClkDiv4.reset_n & reset_counter_n),
+        .sync_reset_n(plat_ifc.clocks.pClkDiv4.reset_n & reset_counter_n_q),
         .enable(enable_counter & ~max_value_reached)
     );
 
@@ -162,7 +164,7 @@ module ofs_plat_afu
         .count(counter_clkusr_value),
         .max_value('0),
         .max_value_reached(),
-        .sync_reset_n(plat_ifc.clocks.uClk_usr.reset_n & reset_counter_n),
+        .sync_reset_n(plat_ifc.clocks.uClk_usr.reset_n & reset_counter_n_q),
         .enable(enable_counter & ~max_value_reached)
     );
 
@@ -172,7 +174,7 @@ module ofs_plat_afu
         .count(counter_clkusr_div2_value),
         .max_value('0),
         .max_value_reached(),
-        .sync_reset_n(plat_ifc.clocks.uClk_usrDiv2.reset_n & reset_counter_n),
+        .sync_reset_n(plat_ifc.clocks.uClk_usrDiv2.reset_n & reset_counter_n_q),
         .enable(enable_counter & ~max_value_reached)
     );
 
@@ -182,7 +184,7 @@ module ofs_plat_afu
         .count(counter_clk_value),
         .max_value('0),
         .max_value_reached(),
-        .sync_reset_n(reset_n & reset_counter_n),
+        .sync_reset_n(reset_n & reset_counter_n_q),
         .enable(enable_counter & ~max_value_reached)
     );
 
@@ -204,6 +206,8 @@ module ofs_plat_afu
 
     always_ff @(posedge clk)
     begin
+        reset_counter_n_q <= reset_counter_n;
+
         if (!reset_n)
         begin
             mmio64_to_afu.readdatavalid <= 1'b0;
