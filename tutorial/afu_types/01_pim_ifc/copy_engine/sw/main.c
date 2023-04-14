@@ -18,8 +18,8 @@
 #include "copy_engine.h"
 
 
-static uint32_t chunk_size = 4096;
-static uint32_t completion_freq = 0;
+static uint32_t chunk_size = 8192;
+static uint32_t completion_freq = 32;
 static uint32_t max_reqs_in_flight = 0;
 static bool use_interrupts = false;
 
@@ -39,7 +39,7 @@ help(void)
            "      -h,--help             Print this help\n"
            "\n"
            "      -c,--chunk-size       Size, in bytes, of data to move with each read\n"
-           "                            or write request. (Default: 4KB)\n"
+           "                            or write request. (Default: 8KB)\n"
            "      -f,--completion-freq  Number of commands per completion. Synchronization\n"
            "                            overhead decreases as this value increases, since\n"
            "                            multiple completions are signaled with a single\n"

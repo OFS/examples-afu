@@ -56,7 +56,24 @@ module ofs_plat_afu
     // and the native protocol of the host channel. This same module
     // name is available both on platforms that expose AXI-S PCIe TLP
     // streams to the AFU and on platforms that expose CCI-P.
-    ofs_plat_host_chan_as_axi_mem_with_mmio primary_axi
+    ofs_plat_host_chan_as_axi_mem_with_mmio
+      #(
+        // The data stream expects read responses in request order.
+        // Have the PIM guarantee ordered responses. The PIM will insert
+        // a reorder buffer only if read responses are not already ordered
+        // by some other component, such as the PCIe SS.
+        .SORT_READ_RESPONSES(1),
+        // Because the algorithm in this AFU loops read responses back
+        // to the host channel as writes, there is a chance for deadlocks
+        // if reads and writes share ready/enable logic. No credit for
+        // reads can lead to blocked writes and no way to drain pending
+        // read responses. Setting BUFFER_READ_RESPONSES causes the PIM
+        // to manage buffer slots for all pending read responses. If
+        // the PIM has already inserted a reorder buffer the flag is
+        // ignored, since the reorder buffer already has this property.
+        .BUFFER_READ_RESPONSES(1)
+        )
+      primary_axi
        (
         .to_fiu(plat_ifc.host_chan.ports[0]),
         .host_mem_to_afu(host_mem),
