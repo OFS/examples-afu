@@ -68,6 +68,7 @@ static t_pinned_buffer* alloc_buffer_group(fpga_handle accel_handle,
         if (NULL == bufs[i].ptr)
         {
             fprintf(stderr, "Pinned buffer allocation failed!\n");
+            free(bufs);
             return NULL;
         }
 
