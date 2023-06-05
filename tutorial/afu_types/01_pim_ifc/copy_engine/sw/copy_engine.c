@@ -68,6 +68,7 @@ static t_pinned_buffer* alloc_buffer_group(fpga_handle accel_handle,
         if (NULL == bufs[i].ptr)
         {
             fprintf(stderr, "Pinned buffer allocation failed!\n");
+            free(bufs);
             return NULL;
         }
 
@@ -285,7 +286,10 @@ int copy_engine(
     src_bufs = alloc_buffer_group(accel_handle, buf_size, num_bufs);
     if (NULL == src_bufs) return -1;
     dst_bufs = alloc_buffer_group(accel_handle, buf_size, num_bufs);
-    if (NULL == dst_bufs) return -1;
+    if (NULL == dst_bufs) {
+        free_buffer_group(accel_handle, num_bufs, src_bufs);
+        return -1;
+    }
 
 
     volatile uint64_t *status_line;
