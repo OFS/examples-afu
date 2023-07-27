@@ -173,7 +173,10 @@ fpga_result run_test(test_params_t *params)
       return res;
 
    // read memory errors
-   fpgaReadMMIO64(params->afc_handle, 0, MEM_ERRORS, &data);
+   res = fpgaReadMMIO64(params->afc_handle, 0, MEM_ERRORS, &data);
+   if(res != FPGA_OK)
+      return res;
+
    if(data == 0) {
       printf("No memory errors. Test passed.\n");
       return FPGA_OK;
