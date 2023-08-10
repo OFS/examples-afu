@@ -1,3 +1,6 @@
+# Copyright 2022 Intel Corporation
+# SPDX-License-Identifier: MIT
+
 if(UNIX)
     # Direct CMake to use icpx rather than the default C++ compiler/linker
     set(CMAKE_CXX_COMPILER icpx)

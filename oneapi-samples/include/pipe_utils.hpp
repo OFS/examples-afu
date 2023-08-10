@@ -1,8 +1,5 @@
-//==============================================================
-// Copyright Intel Corporation
-//
+// Copyright 2022 Intel Corporation
 // SPDX-License-Identifier: MIT
-// =============================================================
 #ifndef __PIPE_UTILS_HPP__
 #define __PIPE_UTILS_HPP__
 

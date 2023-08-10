@@ -1,3 +1,6 @@
+# Copyright 2022 Intel Corporation
+# SPDX-License-Identifier: MIT
+
 set(SOURCE_FILE io_streaming.cpp)
 set(TARGET_NAME io_streaming)
 set(EMULATOR_TARGET ${TARGET_NAME}.fpga_emu)

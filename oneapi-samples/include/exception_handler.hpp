@@ -1,3 +1,5 @@
+// Copyright 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
 #ifndef __EXCEPTIONHANDLER_HPP__
 #define __EXCEPTIONHANDLER_HPP__
 #include <sycl/sycl.hpp>

@@ -1,3 +1,6 @@
+// Copyright 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
+
 #ifndef __FAKEIOPIPES_HPP__
 #define __FAKEIOPIPES_HPP__
 
