@@ -1,3 +1,6 @@
+// Copyright 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
+
 #ifndef __LOOPBACKTEST_HPP__
 #define __LOOPBACKTEST_HPP__
 
