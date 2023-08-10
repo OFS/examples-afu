@@ -1,3 +1,5 @@
+// Copyright 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
 #ifndef __METAPROGRAMMING_UTILS_HPP__
 #define __METAPROGRAMMING_UTILS_HPP__
 

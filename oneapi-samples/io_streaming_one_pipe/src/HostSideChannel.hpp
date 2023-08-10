@@ -1,3 +1,6 @@
+// Copyright 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
+
 #ifndef __HOSTSIDECHANNEL_HPP__
 #define __HOSTSIDECHANNEL_HPP__
 

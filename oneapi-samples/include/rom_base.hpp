@@ -1,3 +1,5 @@
+// Copyright 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
 #ifndef __ROM_BASE_HPP__
 #define __ROM_BASE_HPP__
 

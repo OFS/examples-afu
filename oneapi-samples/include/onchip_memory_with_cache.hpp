@@ -1,3 +1,5 @@
+// Copyright 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
 #ifndef __ONCHIP_MEMORY_WITH_CACHE_HPP__
 #define __ONCHIP_MEMORY_WITH_CACHE_HPP__
 
