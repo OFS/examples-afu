@@ -14,7 +14,6 @@
 // NOTE: define this BEFORE including the LoopbackTest.hpp and
 // SideChannelTest.hpp which will check for the presence of this macro.
 #define USE_REAL_IO_PIPES
-//#define OUTER_LOOP_COUNT 512
 #define OUTER_LOOP_COUNT 10 
 #define INNER_LOOP_COUNT 2048 
 
@@ -36,7 +35,6 @@ struct LoopBackWriteIOPipeID { static constexpr unsigned id = 1; };
 //
 template<class IOPipeIn, class IOPipeOut>
 event SubmitLoopbackKernel(queue& q, size_t count, bool& passed) {
-//void SubmitLoopbackKernel(queue& q, size_t count) {
  std::cout << "inside SubmitLoopbackKernel \n"; 
   unsigned long int *datain_host = (unsigned long int *)malloc(OUTER_LOOP_COUNT * INNER_LOOP_COUNT * sizeof(unsigned long int));
   for(size_t count = 0; count < (OUTER_LOOP_COUNT*INNER_LOOP_COUNT); count++){
@@ -159,18 +157,6 @@ bool RunLoopbackSystem(queue& q, size_t count) {
       passed &= false;
     }
   }
-/*#else
-  for (size_t i = 0; i < (OUTER_LOOP_COUNT*INNER_LOOP_COUNT); i++) {
-    if (dataout_host[i] != datain_host[i]) {
-      std::cerr << "ERROR: output mismatch at entry " << i << ": "
-                << dataout_host[i] << " != " << datain_host[i]
-                << " (out != in)\n";
-      passed &= false;
-    }
-  }
-  
-  return passed;
-*/
 #endif
 
   return passed;

@@ -14,10 +14,7 @@
 // NOTE: define this BEFORE including the LoopbackTest.hpp and
 // SideChannelTest.hpp which will check for the presence of this macro.
 #define USE_REAL_IO_PIPES
-//#define OUTER_LOOP_COUNT 512
-//#define OUTER_LOOP_COUNT 10 
 #define OUTER_LOOP_COUNT 1 
-//#define INNER_LOOP_COUNT 2048 
 #define INNER_LOOP_COUNT 128 
 #define PIPE_COUNT 4 
 
@@ -36,7 +33,6 @@ struct LoopBackWriteIOPipeID_1 { static constexpr unsigned id = 0; };
 struct LoopBackWriteIOPipeID_2 { static constexpr unsigned id = 2; };
 struct LoopBackWriteIOPipeID_3 { static constexpr unsigned id = 4; };
 struct LoopBackWriteIOPipeID_4 { static constexpr unsigned id = 6; };
-
 
 //
 // The simplest processing kernel. Streams data in 'IOPipeIn' and streams
@@ -66,7 +62,6 @@ event SubmitLoopbackKernel(queue& q, size_t count, bool& passed) {
     auto out = buf_out.get_access<access::mode::read_write>(h);
 
     h.single_task<LoopBackMainKernel>([=] {
-    //for(size_t outer_loop_count = 0 ; outer_loop_count < OUTER_LOOP_COUNT; outer_loop_count++) { 
       for (size_t inner_loop_count = 0; inner_loop_count < INNER_LOOP_COUNT ; inner_loop_count++) {
         IOPipeOut_1::write(in[0*OUTER_LOOP_COUNT*INNER_LOOP_COUNT + inner_loop_count]);
         IOPipeOut_2::write(in[1*OUTER_LOOP_COUNT*INNER_LOOP_COUNT + inner_loop_count]);
@@ -79,7 +74,6 @@ event SubmitLoopbackKernel(queue& q, size_t count, bool& passed) {
         out[2*OUTER_LOOP_COUNT*INNER_LOOP_COUNT + inner_loop_count] = IOPipeIn_3::read();
         out[3*OUTER_LOOP_COUNT*INNER_LOOP_COUNT + inner_loop_count] = IOPipeIn_4::read();
       }
-   // }
   });
   });
 
