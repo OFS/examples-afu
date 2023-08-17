@@ -107,10 +107,9 @@ set_target_properties(${FPGA_TARGET} PROPERTIES COMPILE_FLAGS "${HARDWARE_COMPIL
 set_target_properties(${FPGA_TARGET} PROPERTIES LINK_FLAGS "${HARDWARE_LINK_FLAGS} -reuse-exe=${CMAKE_BINARY_DIR}/${FPGA_TARGET}")
 # The -reuse-exe flag enables rapid recompilation of host-only code changes.
 # See C++SYCL_FPGA/GettingStarted/fast_recompile for details.
-target_link_libraries(${FPGA_TARGET} $ENV{AOCL_BOARD_PACKAGE_ROOT}/linux64/lib/libintel_opae_mmd.so)
-target_link_libraries(${FPGA_TARGET} $ENV{AOCL_BOARD_PACKAGE_ROOT}/linux64/lib/libMPF.so)
-target_link_libraries(${FPGA_TARGET} $ENV{AOCL_BOARD_PACKAGE_ROOT}/build/opae/install/lib64/libopae-c.so)
-target_link_libraries(${FPGA_TARGET} $ENV{AOCL_BOARD_PACKAGE_ROOT}/build/json-c/install/lib64/libjson-c.so)
-#target_link_libraries(${FPGA_TARGET} ${AOCL_BOARD_PACKAGE_ROOT}/build/opae-sim/install/lib64/libopae-c-ase.so)
-#target_link_libraries(${FPGA_TARGET} ${AOCL_BOARD_PACKAGE_ROOT}/build/opae-sim/install/lib64/libase.so)
+target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/linux64/lib/libintel_opae_mmd.so)
+target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/linux64/lib/libMPF.so)
+target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/build/opae/install/lib64/libopae-c.so)
+target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/build/json-c/install/lib64/libjson-c.so)
+
 
