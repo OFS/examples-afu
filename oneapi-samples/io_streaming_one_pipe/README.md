@@ -8,7 +8,7 @@ Building and running this sample requires setup described in Perquisites section
 ## Purpose
 
 The purpose of this code sample is to help users quickly build IO Streaming sample with one pipe/channel and test it out.
-For more inofrmation about OneAPI-ASP, please refer OneAPI-ASP repo [here](https://github.com/OFS/oneapi-asp)
+For more information about OneAPI-ASP, please refer OneAPI-ASP repo [here](https://github.com/OFS/oneapi-asp)
 For more information about IO Streaming/Pipes refer [here](https://github.com/oneapi-src/oneAPI-samples/tree/master/DirectProgramming/C%2B%2BSYCL_FPGA/Tutorials/DesignPatterns/io_streaming)
 
 ## Key Implementation Details
@@ -20,7 +20,7 @@ Build steps are largely same as build steps for other oneapi-samples. You need t
 Once you have built ASP and set appropriate environment variables you can run below steps to compile io pipes samples<br>
   - mkdir ofs_n6001_usm_iopipes or mkdir ofs_n6001_iopipes<br>
   - cd ofs_n6001_usm_iopipes or cd ofs_n6001_iopipes<br>
-  - cmake .. -DFPGA_DEVICE=<path-to-asp>:<board-variant> <br>
+  - cmake .. -DFPGA_DEVICE=< path-to-asp >:< board-variant > <br>
   - make fpga<br>
 
 Before running the executable users need to set follwing env variables
