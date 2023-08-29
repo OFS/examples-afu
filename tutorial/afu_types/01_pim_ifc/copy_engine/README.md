@@ -40,5 +40,5 @@ The first two use interrupts, though the second generates an interrupt only ever
 
 This example is built on top of the PIM's top-level ofs\_plat\_afu\(\) wrapper, but could also be used in the [hybrid style](../../02_hybrid/) described in the next major section.
 
-Hugepages requirements for this test
-  - More than 32, 2MB hugepages need to be setup
+Huge pages requirement for this test:
+  - More than 32, 2MB huge pages need to be setup
