@@ -39,3 +39,6 @@ The --help argument to the software shows available options and allows for bench
 The first two use interrupts, though the second generates an interrupt only every 64 transactions. The last command updates a counter in host memory after completing each transaction.
 
 This example is built on top of the PIM's top-level ofs\_plat\_afu\(\) wrapper, but could also be used in the [hybrid style](../../02_hybrid/) described in the next major section.
+
+Hugepages requirements for this test
+  - More than 32, 2MB hugepages need to be setup
