@@ -109,6 +109,9 @@ set_target_properties(${FPGA_TARGET} PROPERTIES LINK_FLAGS "${HARDWARE_LINK_FLAG
 # See C++SYCL_FPGA/GettingStarted/fast_recompile for details.
 target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/linux64/lib/libintel_opae_mmd.so)
 target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/linux64/lib/libMPF.so)
-target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/build/opae/install/lib64/libopae-c.so)
-target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/build/json-c/install/lib64/libjson-c.so)
-
+if(EXISTS "$ENV{OFS_ASP_ROOT}/build/opae/install/lib64/libopae-c.so")
+    target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/build/opae/install/lib64/libopae-c.so)
+endif()
+if(EXISTS "$ENV{OFS_ASP_ROOT}/build/json-c/install/lib64/libjson-c.so")
+    target_link_libraries(${FPGA_TARGET} $ENV{OFS_ASP_ROOT}/build/json-c/install/lib64/libjson-c.so)
+endif()
