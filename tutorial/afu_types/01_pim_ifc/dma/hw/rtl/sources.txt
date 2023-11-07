@@ -1,4 +1,4 @@
-copy_engine.json
+dma.json
 ofs_plat_afu.sv
 
 copy_engine_pkg.sv

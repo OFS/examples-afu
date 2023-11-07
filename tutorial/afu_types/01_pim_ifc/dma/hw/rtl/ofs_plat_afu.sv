@@ -114,14 +114,15 @@ module ofs_plat_afu
 
     // =========================================================================
     //
-    //   Instantiate the copy engine.
+    //   Instantiate the DMA AFU.
     //
     // =========================================================================
 
-    copy_engine_top copy_engine
+    dma_top dma_top_inst 
        (
         .mmio64_to_afu,
-        .host_mem
+        .host_mem,
+        .ddr_mem
         );
 
 endmodule

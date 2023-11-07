@@ -12,13 +12,14 @@
 // mapping is created by the AFU.
 //
 
-module copy_engine_top
+module dma_top
    (
     // CSR interface (MMIO on the host)
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
     // Host memory (DMA)
     ofs_plat_axi_mem_if.to_sink host_mem
+    ofs_plat_axi_mem_if.to_sink ddr_mem
     );
 
     // Each interface names its associated clock and reset.
@@ -40,30 +41,27 @@ module copy_engine_top
     //
     // ====================================================================
 
-    copy_engine_pkg::t_rd_cmd rd_cmd;
-    copy_engine_pkg::t_rd_state rd_state;
-    copy_engine_pkg::t_wr_cmd wr_cmd;
-    copy_engine_pkg::t_wr_state wr_state;
+    dma_pkg::t_control wr_host_control;
+    dma_pkg::t_status  wr_host_status;
+    dma_pkg::t_control wr_ddr_control;
+    dma_pkg::t_status  wr_ddr_status;
 
-    csr_mgr
-      #(
+    csr_mgr #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT),
         // Maximum burst length is dictated by the size of the field in
         // the AXI-MM host_mem. The PIM will map AXI-MM bursts to legal
         // host channel bursts, including guaranteeing to satisfy any
         // necessary address alignment.
         .MAX_BURST_CNT(1 << host_mem.BURST_CNT_WIDTH_)
-        )
-      csr_mgr_inst
-       (
+    ) csr_mgr_inst (
         .mmio64_to_afu,
 
-        .rd_cmd,
-        .rd_state,
+        .wr_ddr_control,
+        .wr_ddr_status,
 
-        .wr_cmd,
-        .wr_state
-        );
+        .wr_host_control,
+        .wr_host_status
+    );
 
 
     // ====================================================================
@@ -75,13 +73,35 @@ module copy_engine_top
     // Declare a copy of the host memory read interface. The read ports
     // will be connected to the read engine and the write ports unused.
     // This will split the read channels from the write channels but keep
-    // a single interface type.
+    // a single interface type.  Do this for each host/ddr read/write
     ofs_plat_axi_mem_if
       #(
         // Copy the configuration from host_mem
         `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
         )
       host_mem_rd();
+
+    ofs_plat_axi_mem_if
+      #(
+        // Copy the configuration from host_mem
+        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
+        )
+      host_mem_wr();
+
+
+     ofs_plat_axi_mem_if
+      #(
+        // Copy the configuration from ddr_mem
+        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem)
+        )
+      ddr_mem_wr();
+
+     ofs_plat_axi_mem_if
+      #(
+        // Copy the configuration from ddr_mem
+        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem)
+        )
+      ddr_mem_rd();
 
     // Connect read ports to host_mem
     assign host_mem_rd.clk = clk;
@@ -97,80 +117,84 @@ module copy_engine_top
     assign host_mem_rd.r = host_mem.r;
 
     // Write unused
-    assign host_mem_rd.bvalid = 1'b0;
+    assign host_mem_rd.bvalid  = 1'b0;
     assign host_mem_rd.awready = 1'b0;
-    assign host_mem_rd.wready = 1'b0;
+    assign host_mem_rd.wready  = 1'b0;
 
-    //
-    // Declare an AXI stream that will pass data from the read engine to the
-    // data stream engine.
-    //
-    ofs_plat_axi_stream_if
-      #(
-        .TDATA_TYPE(logic [ofs_plat_host_chan_pkg::DATA_WIDTH-1 : 0]),
-        .TUSER_TYPE(logic)
-        )
-      data_stream_from_rd();
+    // Connect read ports to host_mem
+    assign host_mem_wr.clk             = clk;
+    assign host_mem_wr.reset_n         = reset_n;
+    assign host_mem_wr.instance_number = host_mem.instance_number;
 
-    assign data_stream_from_rd.clk = clk;
-    assign data_stream_from_rd.reset_n = reset_n;
-    assign data_stream_from_rd.instance_number = 0;
+    assign host_mem.awvalid    = host_mem_wr.awvalid;
+    assign host_mem_wr.awready = host_mem.awready;
+    assign host_mem.aw         = host_mem_wr.aw;
 
-    //
-    // Read engine
-    //
-    copy_read_engine
-      #(
+    assign host_mem.wvalid     = host_mem_wr.wvalid;
+    assign host_mem_wr.wready  = host_mem.wready;
+    assign host_mem.w          = host_mem_wr.w;
+
+    assign host_mem_wr.bvalid = host_mem.bvalid;
+    assign host_mem.bready    = host_mem_wr.bready;
+    assign host_mem_wr.b      = host_mem.b;
+
+    // Read unused
+    assign host_mem_wr.rvalid  = 1'b0;
+    assign host_mem_wr.arready = 1'b0;
+
+
+
+ 
+ // Connect read ports to ddr_mem
+    assign ddr_mem_rd.clk = clk;
+    assign ddr_mem_rd.reset_n = reset_n;
+    assign ddr_mem_rd.instance_number = ddr_mem.instance_number;
+
+    assign ddr_mem.arvalid = ddr_mem_rd.arvalid;
+    assign ddr_mem_rd.arready = ddr_mem.arready;
+    assign ddr_mem.ar = ddr_mem_rd.ar;
+
+    assign ddr_mem_rd.rvalid = ddr_mem.rvalid;
+    assign ddr_mem.rready = ddr_mem_rd.rready;
+    assign ddr_mem_rd.r = ddr_mem.r;
+
+    // Write unused
+    assign ddr_mem_rd.bvalid  = 1'b0;
+    assign ddr_mem_rd.awready = 1'b0;
+    assign ddr_mem_rd.wready  = 1'b0;
+
+    // Connect read ports to ddr_mem
+    assign ddr_mem_wr.clk             = clk;
+    assign ddr_mem_wr.reset_n         = reset_n;
+    assign ddr_mem_wr.instance_number = ddr_mem.instance_number;
+
+    assign ddr_mem.awvalid    = ddr_mem_wr.awvalid;
+    assign ddr_mem_wr.awready = ddr_mem.awready;
+    assign ddr_mem.aw         = ddr_mem_wr.aw;
+
+    assign ddr_mem.wvalid     = ddr_mem_wr.wvalid;
+    assign ddr_mem_wr.wready  = ddr_mem.wready;
+    assign ddr_mem.w          = ddr_mem_wr.w;
+
+    assign ddr_mem_wr.bvalid = ddr_mem.bvalid;
+    assign ddr_mem.bready    = ddr_mem_wr.bready;
+    assign ddr_mem_wr.b      = ddr_mem.b;
+
+    // Read unused
+    assign ddr_mem_wr.rvalid  = 1'b0;
+    assign ddr_mem_wr.arready = 1'b0;
+   
+
+    dma_engine #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
-        )
-      read_engine
-       (
-        // Host memory read interface
-        .host_mem(host_mem_rd),
-
-        // Stream data from reader to writer
-        .data_stream(data_stream_from_rd),
+    ) write_ddr_engine (
+        .src_mem  (host_mem_rd),
+        .dest_mem (ddr_mem_wr),
 
         // Commands
-        .rd_cmd,
-        .rd_state
-        );
-    
-
-    // ====================================================================
-    //
-    // Data stream engine
-    //
-    // ====================================================================
-
-    // Forward the data stream through a sample data stream engine.
-    // The assumption is that a real algorithm would be doing some
-    // manipulation of the data stream and this demonstrates that
-    // data path.
-    //
-
-    // ***
-    // The PIM guarantees that the data stream arrives in request order.
-    // ***
-
-    // Another AXI stream, from the engine to the writer
-    ofs_plat_axi_stream_if
-      #(
-        .TDATA_TYPE(logic [ofs_plat_host_chan_pkg::DATA_WIDTH-1 : 0]),
-        .TUSER_TYPE(logic)
-        )
-      data_stream_to_wr();
-
-    assign data_stream_to_wr.clk = clk;
-    assign data_stream_to_wr.reset_n = reset_n;
-    assign data_stream_to_wr.instance_number = 0;
-
-    data_stream_engine data_engine
-       (
-        .data_stream_in(data_stream_from_rd),
-        .data_stream_out(data_stream_to_wr)
-        );
-
+        .control (wr_ddr_ctrl),
+        .status  (wr_ddr_status)
+    );
 
     // ====================================================================
     //
@@ -182,52 +206,19 @@ module copy_engine_top
     // will be connected to the write engine and the read ports unused.
     // This will split the read channels from the write channels but keep
     // a single interface type.
-    ofs_plat_axi_mem_if
-      #(
-        // Copy the configuration from host_mem
-        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
-        )
-      host_mem_wr();
-
-    // Connect read ports to host_mem
-    assign host_mem_wr.clk = clk;
-    assign host_mem_wr.reset_n = reset_n;
-    assign host_mem_wr.instance_number = host_mem.instance_number;
-
-    assign host_mem.awvalid = host_mem_wr.awvalid;
-    assign host_mem_wr.awready = host_mem.awready;
-    assign host_mem.aw = host_mem_wr.aw;
-
-    assign host_mem.wvalid = host_mem_wr.wvalid;
-    assign host_mem_wr.wready = host_mem.wready;
-    assign host_mem.w = host_mem_wr.w;
-
-    assign host_mem_wr.bvalid = host_mem.bvalid;
-    assign host_mem.bready = host_mem_wr.bready;
-    assign host_mem_wr.b = host_mem.b;
-
-    // Read unused
-    assign host_mem_wr.rvalid = 1'b0;
-    assign host_mem_wr.arready = 1'b0;
 
     //
-    // Write engine
+    // Write Host Engine
     //
-    copy_write_engine
-      #(
+    dma_engine #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
-        )
-      write_engine
-       (
-        // Host memory write interface
-        .host_mem(host_mem_wr),
-
-        // Stream data from reader to writer
-        .data_stream(data_stream_to_wr),
+    ) write_host_engine (
+        .src_mem  (ddr_mem_rd),
+        .dest_mem (host_mem_wr),
 
         // Commands
-        .wr_cmd,
-        .wr_state
-        );
+        .control (wr_host_control),
+        .status  (wr_host_status)
+    );
 
 endmodule

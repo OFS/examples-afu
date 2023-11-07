@@ -3,47 +3,36 @@
 
 `include "ofs_plat_if.vh"
 
-package copy_engine_pkg;
+package dma_pkg;
 
-    localparam CMD_NUM_LINES_BITS = 8;
-    localparam CMD_ADDR_BITS = 64;
-    localparam CMD_INTR_VEC_BITS = `OFS_PLAT_PARAM_HOST_CHAN_NUM_INTR_VECS;
+    localparam SRC_ADDR_WIDTH = 32;
+    localparam DEST_ADDR_WIDTH = 32;
+    localparam LENGTH_WIDTH = 32;
+    typedef enum {HOST_TO_DDR, DDR_TO_HOST, DDR_TO_DDR} e_dma_mode;
 
-    typedef logic [CMD_NUM_LINES_BITS-1 : 0] t_cmd_num_lines;
-    typedef logic [CMD_ADDR_BITS-1 : 0] t_cmd_addr;
-    typedef logic [CMD_INTR_VEC_BITS-1 : 0] t_cmd_intr_id;
-
-    // Read commands (CSR to read engine)
     typedef struct {
-        logic enable;
-        t_cmd_num_lines num_lines;
-        t_cmd_addr addr;
-    } t_rd_cmd;
+      logic go;
+    } t_descriptor_control;
 
-    // Read state (read engine to CSR)
     typedef struct {
-        logic [63:0] num_lines_read;
-    } t_rd_state;
+        logic [SRC_ADDR_WIDTH-1:0] src_addr;
+        logic [DEST_ADDR_WIDTH-1:0] dest_addr;
+        logic [LENGTH_WIDTH-1:0] length;
+        t_descriptor_control control;
+    } t_descriptor
 
-    // Write commands (CSR to write engine)
     typedef struct {
-        logic enable;
-        t_cmd_num_lines num_lines;
-        t_cmd_addr addr;
-        t_cmd_intr_id intr_id;
-        logic intr_ack;
+      logic reset_engine;
+      e_dma_mode mode;
+      t_descriptor descriptor;
+    } t_control;
 
-        // When use_mem_status is set, the write engine writes completion
-        // updates to the mem_status_addr. Completions are indicated by
-        // writing the total number of commands processed. When use_mem_status
-        // is clear, the write engine indicates generates interrupts.
-        logic use_mem_status;
-        t_cmd_addr mem_status_addr;
-    } t_wr_cmd;
-
-    // Write state (write engine to CSR)
     typedef struct {
-        logic [63:0] num_lines_write;
-    } t_wr_state;
+        logic [32:0] descriptor_fifo_count;
+        logic [32:0] descriptor_fifo_depth;
+        logic [15:0] rd_state;
+        logic [15:0] wr_state;
+    } t_status;
 
-endpackage // copy_engine_pkg
+
+   endpackage // dma_pkg

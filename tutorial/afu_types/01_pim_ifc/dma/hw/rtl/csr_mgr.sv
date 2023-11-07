@@ -18,49 +18,6 @@
 //   0: Device feature header (DFH)
 //   1: AFU_ID_L
 //   2: AFU_ID_L
-//   3: DFH_RSVD0
-//   4: DFH_RSVD1
-//   5: Platform information
-//	  [63:48] Maximum burst length
-//        [47:32] Maximum permitted number of requests in flight
-//        [31:24] Number of interrupt vectors available
-//        [23:16] Data bus width (bytes)
-//        [15: 0] pClk frequency (MHz)
-//   6: Number of lines read (each line is data bus width bytes)
-//   7: Number of lines written
-//
-// Write command registers (64 bits, byte address is offset * 8):
-//
-//   8: Read engine num_lines: number of lines to read per request. Define
-//      "line" as the width of the data bus. This must be set before writing
-//      an address to register 9. The value is actually num_lines-1 to match
-//      AXI-MM encoding.
-//   9: Read start address. When this is written, the number of lines currently
-//      in register 8 will be read, starting with the incoming address. The
-//      host must rate limit requests so that there are fewer than the maximum
-//      permitted number of requests in flight (read register 5).
-//  10: Write engine num_lines. The same as register 8, but for the write stream.
-//      Num_lines for a write request must match num_lines for the read that is
-//      feeding it. The interrupt vector to use when completing a packet that
-//      has interrupt completion enabled is stored in the high half.
-//        [39:32] interrupt number
-//        [31: 0] num_lines
-//  11: Write start address. The same protocol as register 9, but for writes.
-//      Write data comes from the read stream. The write engine will wait for
-//      read data to arrive. When bit 0 of the start address is 1 a completion
-//      will be generated to the host when the write commits. Completions are
-//      either interrupts or writes to the line set in register 13. The interrupt
-//      vector is set in register 10.
-//  12: Interrupt ACK. Software must acknowledge an interrupt before the same
-//      vector can be used again. The value written is ignored.
-//  13: Completion status line address. When not set, interrupts are generated
-//      to indicate command completion to the host. When this register is set,
-//      command completion is indicated by writing the total number of write
-//      commands completed to the status line address. Turn status writes ON
-//      by setting bit 0 when writing register 13. Turn status writes OFF and
-//      use interrupts instead by clearing bit 0 in this register.
-//      
-
 
 module csr_mgr
   #(
@@ -71,17 +28,13 @@ module csr_mgr
     // CSR interface (MMIO on the host)
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
-    // Read engine control - initiate a read of num_lines from addr when enable is set.
-    // Flow control is the host's responsibility, given the maximum number of
-    // requests in flight and the host's knowledge of the number of uncompleted
-    // commands.
-    output copy_engine_pkg::t_rd_cmd rd_cmd,
-    input  copy_engine_pkg::t_rd_state rd_state,
+    output dma_pkg::t_control wr_host_control,
+    input  dma_pkg::t_status  wr_host_status,
 
     // Write engine control - initiate a write of num_lines from addr when enable is set.
     // Write data comes from a read. For a given read/write pair, num_lines must match.
-    output copy_engine_pkg::t_wr_cmd wr_cmd,
-    input  copy_engine_pkg::t_wr_state wr_state
+    output dma_pkg::t_control wr_ddr_control,
+    input  dma_pkg::t_status wr_ddr_status
     );
 
     // Each interface names its associated clock and reset.
@@ -208,42 +161,12 @@ module csr_mgr
               // AFU_ID_H
               2: mmio64_reg.r.data <= afu_id[127:64];
 
-              // DFH_RSVD0
-              3: mmio64_reg.r.data <= '0;
-
-              // DFH_RSVD1
-              4: mmio64_reg.r.data <= '0;
-
-              // Platform information
-              5: 
-                begin
-                    mmio64_reg.r.data <= '0;
-                    // Maximum number of lines in a read or write burst
-                    mmio64_reg.r.data[63:48] <= 16'(MAX_BURST_CNT);
-                    // Maximum permitted number of requests in flight
-                    mmio64_reg.r.data[47:32] <= 16'(MAX_REQS_IN_FLIGHT);
-                    // Number of interrupt vectors available
-                    mmio64_reg.r.data[31:24] <= 8'(`OFS_PLAT_PARAM_HOST_CHAN_NUM_INTR_VECS);
-                    // Data bus width in bytes
-                    mmio64_reg.r.data[23:16] <= 8'(ofs_plat_host_chan_pkg::DATA_WIDTH_BYTES);
-                    // pClk frequency (MHz)
-                    mmio64_reg.r.data[15:0] <= 16'(`OFS_PLAT_PARAM_CLOCKS_PCLK_FREQ);
-                end
-
-              6: mmio64_reg.r.data <= rd_state.num_lines_read;
-              7: mmio64_reg.r.data <= wr_state.num_lines_write;
-
-              default: mmio64_reg.r.data <= '0;
-            endcase
-        end
-        else if (mmio64_to_afu.rready)
-        begin
+        end else if (mmio64_to_afu.rready) begin
             // If a read response was pending it completed
             mmio64_reg.rvalid <= 1'b0;
         end
 
-        if (!reset_n)
-        begin
+        if (!reset_n) begin
             mmio64_reg.rvalid <= 1'b0;
         end
     end
@@ -260,26 +183,20 @@ module csr_mgr
     assign mmio64_to_afu.wready  = !mmio64_reg.wvalid && !mmio64_reg.bvalid;
 
     // Register incoming writes, waiting for both an address and a payload.
-    always_ff @(posedge clk)
-    begin
-        if (is_csr_write)
-        begin
+    always_ff @(posedge clk) begin
+        if (is_csr_write) begin
             // Current write request was handled
             mmio64_reg.awvalid <= 1'b0;
             mmio64_reg.wvalid <= 1'b0;
-        end
-        else
-        begin
+        end else begin
             // Receive new write address
-            if (mmio64_to_afu.awvalid && mmio64_to_afu.awready)
-            begin
+            if (mmio64_to_afu.awvalid && mmio64_to_afu.awready) begin
                 mmio64_reg.awvalid <= 1'b1;
                 mmio64_reg.aw <= mmio64_to_afu.aw;
             end
 
             // Receive new write data
-            if (mmio64_to_afu.wvalid && mmio64_to_afu.wready)
-            begin
+            if (mmio64_to_afu.wvalid && mmio64_to_afu.wready)  begin
                 mmio64_reg.wvalid <= 1'b1;
                 mmio64_reg.w <= mmio64_to_afu.w;
             end
@@ -327,9 +244,8 @@ module csr_mgr
     begin
         // There is no flow control on the module's outgoing read/write command
         // ports. If a request was trigger in the last cycle, it was sent.
-        rd_cmd.enable <= 1'b0;
-        wr_cmd.enable <= 1'b0;
-        wr_cmd.intr_ack <= 1'b0;
+       wr_ddr_control <= '0;
+       wr_host_control <= '0;
 
         if (is_csr_write)
         begin
@@ -337,73 +253,49 @@ module csr_mgr
             // low 3 bits to index 64 bit CSRs. Ignore high bits and let the
             // address space wrap.
             case (mmio64_reg.aw.addr[6:3])
-              // Read engine num_lines
-              8: rd_cmd.num_lines <= mmio64_reg.w.data[$bits(rd_cmd.num_lines)-1 : 0];
+            8: wr_ddr_control.mode <= mmio64_reg.w.data[$bits(wr_ddr_control.mode)-1 : 0];
 
-              // Read start address
-              9:
-                begin
-                    rd_cmd.addr <= mmio64_reg.w.data[$bits(rd_cmd.addr)-1 : 0];
-                    // Trigger a host memory read
-                    rd_cmd.enable <= 1'b1;
-                end
+            //9:
+            //  begin
+            //  end
 
-              // Write engine num_lines and interrupt vector ID
-              10:
-                begin
-                    wr_cmd.num_lines <= mmio64_reg.w.data[$bits(wr_cmd.num_lines)-1 : 0];
-                    wr_cmd.intr_id <= mmio64_reg.w.data[32 +: $bits(wr_cmd.intr_id)];
-                end
+            //// Write engine num_lines and interrupt vector ID
+            //10:
+            //  begin
+            //  end
 
-              // Write start address
-              11:
-                begin
-                    wr_cmd.addr <= mmio64_reg.w.data[$bits(wr_cmd.addr)-1 : 0];
-                    // Trigger a host memory write
-                    wr_cmd.enable <= 1'b1;
-                end
+            //// Write start address
+            //11:
+            //  begin
+            //  end
 
-              // Interrupt ACK. The payload is ignored.
-              12: wr_cmd.intr_ack <= 1'b1;
+            //12: 
 
-              // Completion status line config. When this is set, command completions
-              // are indicated with writes to mem_status_addr instead of as interrupts.
-              13:
-                begin
-                    // Bit 0 of the address is an enable flag
-                    wr_cmd.use_mem_status <= mmio64_reg.w.data[0];
-                    wr_cmd.mem_status_addr <= mmio64_reg.w.data[$bits(wr_cmd.mem_status_addr)-1 : 0];
-                    wr_cmd.mem_status_addr[0] <= 1'b0;
-                end
+            //13:
             endcase
         end
  
         if (!reset_n)
         begin
-            rd_cmd.num_lines <= 1'b1;
-            rd_cmd.enable <= 1'b0;
-            wr_cmd.num_lines <= 1'b1;
-            wr_cmd.enable <= 1'b0;
-            wr_cmd.intr_ack <= 1'b0;
-            wr_cmd.use_mem_status <= 1'b0;
-        end
+            wr_ddr_control <= '0;
+            wr_host_control <= '0;
     end
 
     // synthesis translate_off
     always_ff @(posedge clk)
     begin
-        if (rd_cmd.enable && reset_n)
-        begin
-            $display("CSR_MGR: Read 0x%0h lines, starting at addr 0x%0h",
-                     rd_cmd.num_lines, rd_cmd.addr);
-        end
+      //if (rd_cmd.enable && reset_n)
+      //begin
+      //    $display("CSR_MGR: Read 0x%0h lines, starting at addr 0x%0h",
+      //             rd_cmd.num_lines, rd_cmd.addr);
+      //end
 
-        if (wr_cmd.enable && reset_n)
-        begin
-            $display("CSR_MGR: Write 0x%0h lines, starting at addr 0x%0h, %0s req comletion",
-                     wr_cmd.num_lines, { wr_cmd.addr[$bits(wr_cmd.addr)-1 : 1], 1'b0 },
-                     (wr_cmd.addr[0] ? "with" : "without"));
-        end
+      //if (wr_cmd.enable && reset_n)
+      //begin
+      //    $display("CSR_MGR: Write 0x%0h lines, starting at addr 0x%0h, %0s req comletion",
+      //             wr_cmd.num_lines, { wr_cmd.addr[$bits(wr_cmd.addr)-1 : 1], 1'b0 },
+      //             (wr_cmd.addr[0] ? "with" : "without"));
+      //end
     end
     // synthesis translate_on
 
