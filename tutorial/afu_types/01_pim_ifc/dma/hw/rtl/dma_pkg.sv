@@ -19,7 +19,7 @@ package dma_pkg;
         logic [DEST_ADDR_WIDTH-1:0] dest_addr;
         logic [LENGTH_WIDTH-1:0] length;
         t_descriptor_control control;
-    } t_descriptor
+    } t_descriptor;
 
     typedef struct {
       logic reset_engine;

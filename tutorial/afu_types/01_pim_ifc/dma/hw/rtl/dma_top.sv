@@ -18,7 +18,7 @@ module dma_top
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
     // Host memory (DMA)
-    ofs_plat_axi_mem_if.to_sink host_mem
+    ofs_plat_axi_mem_if.to_sink host_mem,
     ofs_plat_axi_mem_if.to_sink ddr_mem
     );
 
@@ -192,7 +192,7 @@ module dma_top
         .dest_mem (ddr_mem_wr),
 
         // Commands
-        .control (wr_ddr_ctrl),
+        .control (wr_ddr_control),
         .status  (wr_ddr_status)
     );
 

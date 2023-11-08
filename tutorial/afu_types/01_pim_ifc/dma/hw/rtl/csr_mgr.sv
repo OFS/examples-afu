@@ -101,15 +101,12 @@ module csr_mgr
     // Ready for new request iff read request and response registers are empty
     assign mmio64_to_afu.arready = !mmio64_reg.arvalid && !mmio64_reg.rvalid;
 
-    always_ff @(posedge clk)
-    begin
-        if (is_csr_read)
-        begin
+    always_ff @(posedge clk) begin
+        if (is_csr_read) begin
             // Current read request was handled
             mmio64_reg.arvalid <= 1'b0;
         end
-        else if (mmio64_to_afu.arvalid && mmio64_to_afu.arready)
-        begin
+        else if (mmio64_to_afu.arvalid && mmio64_to_afu.arready) begin
             // Receive new read request
             mmio64_reg.arvalid <= 1'b1;
             mmio64_reg.ar <= mmio64_to_afu.ar;
@@ -127,10 +124,8 @@ module csr_mgr
     assign mmio64_to_afu.rvalid = mmio64_reg.rvalid;
     assign mmio64_to_afu.r = mmio64_reg.r;
 
-    always_ff @(posedge clk)
-    begin
-        if (is_csr_read)
-        begin
+    always_ff @(posedge clk) begin
+        if (is_csr_read) begin
             // New read response
             mmio64_reg.rvalid <= 1'b1;
 
@@ -160,6 +155,7 @@ module csr_mgr
 
               // AFU_ID_H
               2: mmio64_reg.r.data <= afu_id[127:64];
+            endcase
 
         end else if (mmio64_to_afu.rready) begin
             // If a read response was pending it completed
@@ -202,8 +198,7 @@ module csr_mgr
             end
         end
 
-        if (!reset_n)
-        begin
+        if (!reset_n) begin
             mmio64_reg.awvalid <= 1'b0;
             mmio64_reg.wvalid <= 1'b0;
         end
@@ -213,47 +208,42 @@ module csr_mgr
     assign mmio64_to_afu.bvalid = mmio64_reg.bvalid;
     assign mmio64_to_afu.b = mmio64_reg.b;
 
-    always_ff @(posedge clk)
-    begin
-        if (is_csr_write)
-        begin
+    always_ff @(posedge clk) begin
+        if (is_csr_write) begin
             // New write response
             mmio64_reg.bvalid <= 1'b1;
 
             mmio64_reg.b <= '0;
             mmio64_reg.b.id <= mmio64_reg.aw.id;
             mmio64_reg.b.user <= mmio64_reg.aw.user;
-        end
-        else if (mmio64_to_afu.bready)
-        begin
+        end else if (mmio64_to_afu.bready) begin
             // If a write response was pending it completed
             mmio64_reg.bvalid <= 1'b0;
         end
 
-        if (!reset_n)
-        begin
+        if (!reset_n) begin
             mmio64_reg.bvalid <= 1'b0;
         end
     end
 
 
     //
-    // Decode CSR writes into read/write engine commands.
+    // Decode CSR writes into dma engine commands.
     //
-    always_ff @(posedge clk)
-    begin
+    always_ff @(posedge clk) begin
         // There is no flow control on the module's outgoing read/write command
         // ports. If a request was trigger in the last cycle, it was sent.
-       wr_ddr_control <= '0;
-       wr_host_control <= '0;
 
-        if (is_csr_write)
-        begin
+        if (is_csr_write) begin
             // AXI addresses are always in byte address space. Ignore the
             // low 3 bits to index 64 bit CSRs. Ignore high bits and let the
             // address space wrap.
             case (mmio64_reg.aw.addr[6:3])
-            8: wr_ddr_control.mode <= mmio64_reg.w.data[$bits(wr_ddr_control.mode)-1 : 0];
+            8: begin 
+                // these are examples on how to set up transactions.  please refer to regmap
+                wr_ddr_control.mode <= mmio64_reg.w.data[$bits(wr_ddr_control.mode)-1 : 0];
+                wr_ddr_control.reset_engine <= 1;
+            end
 
             //9:
             //  begin
@@ -275,15 +265,16 @@ module csr_mgr
             endcase
         end
  
-        if (!reset_n)
-        begin
-            wr_ddr_control <= '0;
-            wr_host_control <= '0;
+        if (!reset_n) begin
+            wr_ddr_control.mode <= dma_pkg::DDR_TO_HOST;
+            wr_ddr_control.reset_engine <= 1;
+            wr_host_control.mode <= dma_pkg::DDR_TO_HOST;
+            wr_host_control.reset_engine <= 1;
+        end
     end
 
     // synthesis translate_off
-    always_ff @(posedge clk)
-    begin
+    always_ff @(posedge clk) begin
       //if (rd_cmd.enable && reset_n)
       //begin
       //    $display("CSR_MGR: Read 0x%0h lines, starting at addr 0x%0h",

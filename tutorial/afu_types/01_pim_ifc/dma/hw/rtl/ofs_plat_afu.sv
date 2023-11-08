@@ -37,6 +37,25 @@ module ofs_plat_afu
         )
       host_mem();
 
+    ofs_plat_axi_mem_if
+      #(
+        // The PIM provides parameters for configuring a standard host
+        // memory DMA AXI memory interface.
+        `HOST_CHAN_AXI_MEM_PARAMS,
+        // PIM interfaces can be configured to log traffic during
+        // simulation. In ASE, see work/log_ofs_plat_host_chan.tsv.
+        .LOG_CLASS(ofs_plat_log_pkg::HOST_CHAN),
+
+        // Set the host memory interface's burst count width so it is
+        // large enough to request up to 16KB. The PIM will translate
+        // large requests into sizes that are legal for the underlying
+        // host channel.
+        .BURST_CNT_WIDTH($clog2(16384/ofs_plat_host_chan_pkg::DATA_WIDTH_BYTES))
+        )
+      ddr_mem();
+
+
+
     // Instance of the PIM's AXI memory lite interface, which will be
     // used to implement the AFU's CSR space.
     ofs_plat_axi_mem_lite_if
