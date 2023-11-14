@@ -37,25 +37,6 @@ module ofs_plat_afu
         )
       host_mem();
 
-    ofs_plat_axi_mem_if
-      #(
-        // The PIM provides parameters for configuring a standard host
-        // memory DMA AXI memory interface.
-        `HOST_CHAN_AXI_MEM_PARAMS,
-        // PIM interfaces can be configured to log traffic during
-        // simulation. In ASE, see work/log_ofs_plat_host_chan.tsv.
-        .LOG_CLASS(ofs_plat_log_pkg::HOST_CHAN),
-
-        // Set the host memory interface's burst count width so it is
-        // large enough to request up to 16KB. The PIM will translate
-        // large requests into sizes that are legal for the underlying
-        // host channel.
-        .BURST_CNT_WIDTH($clog2(16384/ofs_plat_host_chan_pkg::DATA_WIDTH_BYTES))
-        )
-      ddr_mem();
-
-
-
     // Instance of the PIM's AXI memory lite interface, which will be
     // used to implement the AFU's CSR space.
     ofs_plat_axi_mem_lite_if
@@ -114,6 +95,71 @@ module ofs_plat_afu
 
     // ====================================================================
     //
+    //  Get local memory from the platform.
+    //
+    // ====================================================================
+
+    // The choice of interface type for local memory is independent of the
+    // choice for the host channel. The host channel could be AXI-MM and
+    // local memory Avalon. In fact, there is no requirement that all banks
+    // of local memory be mapped to the same interface type. An AFU designer
+    // who doesn't value his job could choose to map half the banks to
+    // Avalon and half to AXI within a single AFU.
+
+    ofs_plat_axi_mem_if
+      #(
+        `LOCAL_MEM_AXI_MEM_PARAMS_DEFAULT,
+        // Log AXI transactions in simulation
+        .LOG_CLASS(ofs_plat_log_pkg::LOCAL_MEM)
+        )
+      local_mem_to_afu[local_mem_cfg_pkg::LOCAL_MEM_NUM_BANKS]();
+
+    // Map each bank individually
+    genvar b;
+    generate
+        for (b = 0; b < local_mem_cfg_pkg::LOCAL_MEM_NUM_BANKS; b = b + 1)
+        begin : mb
+            ofs_plat_local_mem_as_axi_mem
+              #(
+                // Add a clock crossing from bank-specific clock.
+                .ADD_CLOCK_CROSSING(1)
+                )
+              shim
+               (
+                .to_fiu(plat_ifc.local_mem.banks[b]),
+                .to_afu(local_mem_to_afu[b]),
+
+                // Map to the same clock as the AFU's host channel
+                // interface. Whatever clock is chosen above in primary_hc
+                // will be used here.
+                .afu_clk(mmio64_to_afu.clk),
+                .afu_reset_n(mmio64_to_afu.reset_n)
+                );
+        end
+    endgenerate
+
+    // > RP Old code TODO: Remove
+    // ofs_plat_axi_mem_if
+    //   #(
+    //     // The PIM provides parameters for configuring a standard host
+    //     // memory DMA AXI memory interface.
+    //     `HOST_CHAN_AXI_MEM_PARAMS,
+    //     // PIM interfaces can be configured to log traffic during
+    //     // simulation. In ASE, see work/log_ofs_plat_host_chan.tsv.
+    //     .LOG_CLASS(ofs_plat_log_pkg::HOST_CHAN),
+
+    //     // Set the host memory interface's burst count width so it is
+    //     // large enough to request up to 16KB. The PIM will translate
+    //     // large requests into sizes that are legal for the underlying
+    //     // host channel.
+    //     .BURST_CNT_WIDTH($clog2(16384/ofs_plat_host_chan_pkg::DATA_WIDTH_BYTES))
+    //     )
+    //   ddr_mem();
+    // < RP Old code TODO: Remove
+
+
+    // ====================================================================
+    //
     //  Tie off unused ports.
     //
     // ====================================================================
@@ -126,7 +172,9 @@ module ofs_plat_afu
       #(
         // Host channel group 0 port 0 is connected. The mask is a
         // bit vector of indices used by the AFU.
-        .HOST_CHAN_IN_USE_MASK(1)
+        .HOST_CHAN_IN_USE_MASK(1),
+        // All banks are used
+        .LOCAL_MEM_IN_USE_MASK(-1)
         )
         tie_off(plat_ifc);
 
@@ -137,11 +185,15 @@ module ofs_plat_afu
     //
     // =========================================================================
 
-    dma_top dma_top_inst 
+    dma_top  
+      #(
+       .NUM_LOCAL_MEM_BANKS(local_mem_cfg_pkg::LOCAL_MEM_NUM_BANKS)
+       )
+    dma_top_inst
        (
         .mmio64_to_afu,
         .host_mem,
-        .ddr_mem
+        .ddr_mem(local_mem_to_afu)
         );
 
 endmodule

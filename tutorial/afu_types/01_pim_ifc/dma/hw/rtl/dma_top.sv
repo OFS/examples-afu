@@ -13,13 +13,16 @@
 //
 
 module dma_top
+  #(
+    parameter NUM_LOCAL_MEM_BANKS = 1
+    )
    (
     // CSR interface (MMIO on the host)
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
     // Host memory (DMA)
     ofs_plat_axi_mem_if.to_sink host_mem,
-    ofs_plat_axi_mem_if.to_sink ddr_mem
+    ofs_plat_axi_mem_if.to_sink ddr_mem[NUM_LOCAL_MEM_BANKS]
     );
 
     // Each interface names its associated clock and reset.
@@ -92,16 +95,30 @@ module dma_top
      ofs_plat_axi_mem_if
       #(
         // Copy the configuration from ddr_mem
-        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem)
+        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
         )
       ddr_mem_wr();
 
      ofs_plat_axi_mem_if
       #(
         // Copy the configuration from ddr_mem
-        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem)
+        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
         )
       ddr_mem_rd();
+
+    // > RP For testing
+    genvar b;
+    generate
+        for (b = 1; b < NUM_LOCAL_MEM_BANKS; b = b + 1)
+        begin : mb
+          assign ddr_mem[b].awvalid = 'b0;
+          assign ddr_mem[b].wvalid = 'b0;
+          assign ddr_mem[b].arvalid = 'b0;
+          assign ddr_mem[b].bready = 'b1;
+          assign ddr_mem[b].rready = 'b1;
+        end
+    endgenerate
+    // < RP For testing
 
     // Connect read ports to host_mem
     assign host_mem_rd.clk = clk;
@@ -148,15 +165,15 @@ module dma_top
  // Connect read ports to ddr_mem
     assign ddr_mem_rd.clk = clk;
     assign ddr_mem_rd.reset_n = reset_n;
-    assign ddr_mem_rd.instance_number = ddr_mem.instance_number;
+    assign ddr_mem_rd.instance_number = ddr_mem[0].instance_number;
 
-    assign ddr_mem.arvalid = ddr_mem_rd.arvalid;
-    assign ddr_mem_rd.arready = ddr_mem.arready;
-    assign ddr_mem.ar = ddr_mem_rd.ar;
+    assign ddr_mem[0].arvalid = ddr_mem_rd.arvalid;
+    assign ddr_mem_rd.arready = ddr_mem[0].arready;
+    assign ddr_mem[0].ar = ddr_mem_rd.ar;
 
-    assign ddr_mem_rd.rvalid = ddr_mem.rvalid;
-    assign ddr_mem.rready = ddr_mem_rd.rready;
-    assign ddr_mem_rd.r = ddr_mem.r;
+    assign ddr_mem_rd.rvalid = ddr_mem[0].rvalid;
+    assign ddr_mem[0].rready = ddr_mem_rd.rready;
+    assign ddr_mem_rd.r = ddr_mem[0].r;
 
     // Write unused
     assign ddr_mem_rd.bvalid  = 1'b0;
@@ -166,19 +183,19 @@ module dma_top
     // Connect read ports to ddr_mem
     assign ddr_mem_wr.clk             = clk;
     assign ddr_mem_wr.reset_n         = reset_n;
-    assign ddr_mem_wr.instance_number = ddr_mem.instance_number;
+    assign ddr_mem_wr.instance_number = ddr_mem[0].instance_number;
 
-    assign ddr_mem.awvalid    = ddr_mem_wr.awvalid;
-    assign ddr_mem_wr.awready = ddr_mem.awready;
-    assign ddr_mem.aw         = ddr_mem_wr.aw;
+    assign ddr_mem[0].awvalid    = ddr_mem_wr.awvalid;
+    assign ddr_mem_wr.awready = ddr_mem[0].awready;
+    assign ddr_mem[0].aw         = ddr_mem_wr.aw;
 
-    assign ddr_mem.wvalid     = ddr_mem_wr.wvalid;
-    assign ddr_mem_wr.wready  = ddr_mem.wready;
-    assign ddr_mem.w          = ddr_mem_wr.w;
+    assign ddr_mem[0].wvalid     = ddr_mem_wr.wvalid;
+    assign ddr_mem_wr.wready  = ddr_mem[0].wready;
+    assign ddr_mem[0].w          = ddr_mem_wr.w;
 
-    assign ddr_mem_wr.bvalid = ddr_mem.bvalid;
-    assign ddr_mem.bready    = ddr_mem_wr.bready;
-    assign ddr_mem_wr.b      = ddr_mem.b;
+    assign ddr_mem_wr.bvalid = ddr_mem[0].bvalid;
+    assign ddr_mem[0].bready    = ddr_mem_wr.bready;
+    assign ddr_mem_wr.b      = ddr_mem[0].b;
 
     // Read unused
     assign ddr_mem_wr.rvalid  = 1'b0;
