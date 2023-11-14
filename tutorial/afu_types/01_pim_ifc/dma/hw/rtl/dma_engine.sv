@@ -26,6 +26,21 @@ module dma_engine
     output dma_pkg::t_status status 
     );
 
+  assign src_mem.awvalid = 'b0;
+  assign src_mem.wvalid = 'b0;
+  assign src_mem.arvalid = 'b0;
+  // assign src_mem.rvalid = 'b0;
+
+  assign src_mem.bready = 'b1;
+  assign src_mem.rready = 'b1;
+
+  assign dest_mem.awvalid = 'b0;
+  assign dest_mem.wvalid = 'b0;
+  assign dest_mem.arvalid = 'b0;
+  // assign dest_mem.rvalid = 'b0;
+  
+  assign dest_mem.bready = 'b1;
+  assign dest_mem.rready = 'b1;
 
 
 endmodule // copy_write_engine

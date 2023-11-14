@@ -19,6 +19,8 @@
 //   1: AFU_ID_L
 //   2: AFU_ID_L
 
+import dma_pkg::*;
+
 module csr_mgr
   #(
     parameter MAX_REQS_IN_FLIGHT = 32,
@@ -28,6 +30,7 @@ module csr_mgr
     // CSR interface (MMIO on the host)
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
+    // !!RP Is this still enough? 
     output dma_pkg::t_control wr_host_control,
     input  dma_pkg::t_status  wr_host_status,
 
@@ -50,6 +53,8 @@ module csr_mgr
     //
     // =========================================================================
 
+    t_dma_csr dma_csr;
+
     //
     // The AXI lite interface is defined in
     // $OPAE_PLATFORM_ROOT/hw/lib/build/platform/ofs_plat_if/rtl/base_ifcs/axi/ofs_plat_axi_mem_lite_if.sv.
@@ -61,11 +66,19 @@ module csr_mgr
     // initialize the full payload of a bus.
     //
 
+    // 64 bit device feature header where the type [63:60] is 0x1 (AFU) and [40] is set (EOL)
+    assign dma_csr.header.dfh = 'h1000010000000000;
+
     // The AFU ID is a unique ID for a given program.  Here we generated
     // one with the "uuidgen" program and stored it in the AFU's JSON file.
     // ASE and synthesis setup scripts automatically invoke afu_json_mgr
     // to extract the UUID into afu_json_info.vh.
     logic [127:0] afu_id = `AFU_ACCEL_UUID;
+    assign dma_csr.header.guid_l = afu_id[63:0];
+    assign dma_csr.header.guid_h = afu_id[127:64];
+
+    assign dma_csr.header.rsvd_1 = 'hDEAD_BEEF_ABCD_EF01;
+    assign dma_csr.header.rsvd_2 = 'hBADD_C0DE_FEDC_BA10;
 
     //
     // A valid AFU must implement a device feature list, starting at MMIO
@@ -138,31 +151,41 @@ module csr_mgr
             // AXI addresses are always in byte address space. Ignore the
             // low 3 bits to index 64 bit CSRs. Ignore high bits and let the
             // address space wrap.
-            case (mmio64_reg.ar.addr[5:3])
-              0: // AFU DFH (device feature header)
-                begin
-                    // Here we define a trivial feature list.  In this
-                    // example, our AFU is the only entry in this list.
-                    mmio64_reg.r.data <= '0;
-                    // Feature type is AFU
-                    mmio64_reg.r.data[63:60] <= 4'h1;
-                    // End of list (last entry in list)
-                    mmio64_reg.r.data[40] <= 1'b1;
-                end
+            case (mmio64_reg.ar.addr[7:3])
+              DMA_DFH:                 mmio64_reg.r.data <= dma_csr.header.dfh;
+              DMA_GUID_L:              mmio64_reg.r.data <= dma_csr.header.guid_l;
+              DMA_GUID_H:              mmio64_reg.r.data <= dma_csr.header.guid_h;
+              DMA_RSVD_1:              mmio64_reg.r.data <= dma_csr.header.rsvd_1;
+              DMA_RSVD_2:              mmio64_reg.r.data <= dma_csr.header.rsvd_2;
 
-              // AFU_ID_L
-              1: mmio64_reg.r.data <= afu_id[63:0];
+              DMA_SRC_ADDR:            mmio64_reg.r.data <= dma_csr.descriptor.src_addr;
+              DMA_DEST_ADDR:           mmio64_reg.r.data <= dma_csr.descriptor.dest_addr;
+              DMA_LENGTH:              mmio64_reg.r.data <= dma_csr.descriptor.length;
+              DMA_DESCRIPTOR_CONTROL:  mmio64_reg.r.data <= dma_csr.descriptor.control;
 
-              // AFU_ID_H
-              2: mmio64_reg.r.data <= afu_id[127:64];
+              DMA_STATUS:              mmio64_reg.r.data <= dma_csr.csr.status;
+              DMA_CONTROL:             mmio64_reg.r.data <= dma_csr.csr.control;
+              DMA_WR_RE_FILL_LEVEL:    mmio64_reg.r.data <= dma_csr.csr.wr_re_fill_level;
+              DMA_RESP_FILL_LEVEL:     mmio64_reg.r.data <= dma_csr.csr.resp_fill_level;
+              DMA_WR_RE_SEQ_NUM:       mmio64_reg.r.data <= dma_csr.csr.seq_num;
+              DMA_CONFIG_1:            mmio64_reg.r.data <= dma_csr.csr.config1;
+              DMA_CONFIG_2:            mmio64_reg.r.data <= dma_csr.csr.config2;
+              DMA_TYPE_VERSION:        mmio64_reg.r.data <= dma_csr.csr.info;
             endcase
 
         end else if (mmio64_to_afu.rready) begin
-            // If a read response was pending it completed
+            // If a read response was pending, it completed
             mmio64_reg.rvalid <= 1'b0;
         end
 
         if (!reset_n) begin
+            dma_csr.csr.status              <= 'b0;
+            dma_csr.csr.wr_re_fill_level    <= 'b0;
+            dma_csr.csr.resp_fill_level     <= 'b0;
+            dma_csr.csr.seq_num             <= 'b0;
+            dma_csr.csr.config1             <= 'b0;
+            dma_csr.csr.config2             <= 'b0;
+            dma_csr.csr.info                <= 'b0;
             mmio64_reg.rvalid <= 1'b0;
         end
     end
@@ -238,38 +261,27 @@ module csr_mgr
             // AXI addresses are always in byte address space. Ignore the
             // low 3 bits to index 64 bit CSRs. Ignore high bits and let the
             // address space wrap.
-            case (mmio64_reg.aw.addr[6:3])
-            8: begin 
-                // these are examples on how to set up transactions.  please refer to regmap
-                wr_ddr_control.mode <= mmio64_reg.w.data[$bits(wr_ddr_control.mode)-1 : 0];
-                wr_ddr_control.reset_engine <= 1;
-            end
+            case (mmio64_reg.aw.addr[7:3])
+              DMA_SRC_ADDR:           dma_csr.descriptor.src_addr   <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
+              DMA_DEST_ADDR:          dma_csr.descriptor.dest_addr  <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
+              DMA_LENGTH:             dma_csr.descriptor.length     <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
+              DMA_DESCRIPTOR_CONTROL: dma_csr.descriptor.control    <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
 
-            //9:
-            //  begin
-            //  end
-
-            //// Write engine num_lines and interrupt vector ID
-            //10:
-            //  begin
-            //  end
-
-            //// Write start address
-            //11:
-            //  begin
-            //  end
-
-            //12: 
-
-            //13:
+              DMA_CONTROL:            dma_csr.csr.control           <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
             endcase
         end
  
         if (!reset_n) begin
-            wr_ddr_control.mode <= dma_pkg::DDR_TO_HOST;
-            wr_ddr_control.reset_engine <= 1;
-            wr_host_control.mode <= dma_pkg::DDR_TO_HOST;
-            wr_host_control.reset_engine <= 1;
+            dma_csr.descriptor.src_addr     <= 'b0;
+            dma_csr.descriptor.dest_addr    <= 'b0;
+            dma_csr.descriptor.length       <= 'b0;
+            dma_csr.descriptor.control      <= 'b0;
+
+            dma_csr.csr.control             <= 'b0;
+            // wr_ddr_control.mode <= dma_pkg::DDR_TO_HOST;
+            // wr_ddr_control.reset_engine <= 1;
+            // wr_host_control.mode <= dma_pkg::DDR_TO_HOST;
+            // wr_host_control.reset_engine <= 1;
         end
     end
 
