@@ -3,6 +3,8 @@
 
 `include "ofs_plat_if.vh"
 
+// import dma_pkg::*;
+
 //
 // Copy engine top-level. Take in a pair of AXI-MM interfaces, one for CSRs and
 // one for reading and writing host memory.
@@ -36,7 +38,6 @@ module dma_top
     // by requesting interrupts.
     localparam MAX_REQS_IN_FLIGHT = 1024;
 
-
     // ====================================================================
     //
     // CSR (MMIO) manager. Handle all MMIO reads and writes from the host
@@ -66,6 +67,47 @@ module dma_top
         .wr_host_status
     );
 
+
+    logic notEmpty_host;  // TODO: used for testing; remove
+
+    ofs_plat_prim_fifo_bram #(
+      .N_DATA_BITS  ($bits(dma_pkg::t_control)),
+      .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
+    ) host_descriptor_fifo (
+      .clk,
+      .reset_n,
+
+      .enq_data(wr_host_control),
+      .enq_en(wr_host_control.descriptor.control.go),
+      .notFull(),
+      .almostFull(),
+
+      .first(),
+      .deq_en(notEmpty_host),
+      .notEmpty(notEmpty_host)
+
+    );
+
+    
+    logic notEmpty_ddr;  // TODO: used for testing; remove
+
+    ofs_plat_prim_fifo_bram #(
+      .N_DATA_BITS  ($bits(dma_pkg::t_control)),
+      .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
+    ) ddr_descriptor_fifo (
+      .clk,
+      .reset_n,
+
+      .enq_data(wr_ddr_control),
+      .enq_en(wr_ddr_control.descriptor.control.go),
+      .notFull(),
+      .almostFull(),
+
+      .first(),
+      .deq_en(notEmpty_ddr),
+      .notEmpty(notEmpty_ddr)
+
+    );
 
     // ====================================================================
     //

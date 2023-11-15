@@ -4,6 +4,34 @@
 `include "ofs_plat_if.vh"
 
 package dma_pkg;
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  //
+  // Parameters
+  //
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+  localparam DMA_DESCRIPTOR_FIFO_DEPTH = 16;
+  localparam DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED = 
+    (DMA_DESCRIPTOR_FIFO_DEPTH == 8)    ? 0 :
+    (DMA_DESCRIPTOR_FIFO_DEPTH == 16)   ? 1 :
+    (DMA_DESCRIPTOR_FIFO_DEPTH == 32)   ? 2 :
+    (DMA_DESCRIPTOR_FIFO_DEPTH == 64)   ? 3 :
+    (DMA_DESCRIPTOR_FIFO_DEPTH == 128)  ? 4 :
+    (DMA_DESCRIPTOR_FIFO_DEPTH == 256)  ? 5 :
+    (DMA_DESCRIPTOR_FIFO_DEPTH == 512)  ? 6 :
+    (DMA_DESCRIPTOR_FIFO_DEPTH == 1024) ? 7 : 'X; // 'X for undefined cases
+  
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  //
+  // CSR
+  //
+  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    // =========================================================================
+    //
+    // CSR Indices 
+    //
+    // =========================================================================
 
     localparam DMA_DFH                = 5'h0;   // R
     localparam DMA_GUID_L             = 5'h1;   // R
@@ -190,7 +218,7 @@ package dma_pkg;
     // =========================================================================
 
     // Adjust as needed
-    typedef struct {
+    typedef struct packed {
       logic reset_engine;
       e_dma_mode mode;
       t_dma_descriptor descriptor;
@@ -202,6 +230,8 @@ package dma_pkg;
         logic [15:0] rd_state;
         logic [15:0] wr_state;
     } t_status;
+
+
 
     // // Read commands (CSR to read engine)
     // typedef struct {

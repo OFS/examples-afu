@@ -54,7 +54,7 @@ module csr_mgr
     // =========================================================================
 
     t_dma_csr dma_csr;
-
+    
     //
     // The AXI lite interface is defined in
     // $OPAE_PLATFORM_ROOT/hw/lib/build/platform/ofs_plat_if/rtl/base_ifcs/axi/ofs_plat_axi_mem_lite_if.sv.
@@ -64,6 +64,13 @@ module csr_mgr
     // concatenation of the struct instance and field. E.g., AWADDR is
     // aw.addr. The use of structs makes it easier to bulk copy or bulk
     // initialize the full payload of a bus.
+    //
+
+    //
+    // A valid AFU must implement a device feature list, starting at MMIO
+    // address 0.  Every entry in the feature list begins with 5 64-bit
+    // words: a device feature header, two AFU UUID words and two reserved
+    // words.
     //
 
     // 64 bit device feature header where the type [63:60] is 0x1 (AFU) and [40] is set (EOL)
@@ -80,12 +87,31 @@ module csr_mgr
     assign dma_csr.header.rsvd_1 = 'hDEAD_BEEF_ABCD_EF01;
     assign dma_csr.header.rsvd_2 = 'hBADD_C0DE_FEDC_BA10;
 
-    //
-    // A valid AFU must implement a device feature list, starting at MMIO
-    // address 0.  Every entry in the feature list begins with 5 64-bit
-    // words: a device feature header, two AFU UUID words and two reserved
-    // words.
-    //
+
+    // Read only fixed register assignments
+    assign dma_csr.csr.config1.max_byte                 = 'b0;  // TODO:
+    assign dma_csr.csr.config1.max_burst_count          = 'b0;  // TODO:
+    assign dma_csr.csr.config1.error_width              = 'b0;  // TODO:
+    assign dma_csr.csr.config1.error_enable             = 'b0;  // TODO:
+    assign dma_csr.csr.config1.enhanced_features        = 'b0;  // TODO:
+    assign dma_csr.csr.config1.dma_mode                 = 'b0;  // TODO:
+    assign dma_csr.csr.config1.descriptor_fifo_depth    = DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED;;
+    assign dma_csr.csr.config1.data_width               = 'b0;  // TODO:
+    assign dma_csr.csr.config1.data_fifo_depth          = 'b0;  // TODO:
+    assign dma_csr.csr.config1.channel_width            = 'b0;  // TODO:
+    assign dma_csr.csr.config1.channel_enable           = 'b0;  // TODO:
+    assign dma_csr.csr.config1.burst_wrapping_support   = 'b0;  // TODO:
+    assign dma_csr.csr.config1.burst_enable             = 'b0;  // TODO:
+ 
+    assign dma_csr.csr.config2.rsvd                         = 'b0;
+    assign dma_csr.csr.config2.transfer_type                = 'b0;  // TODO:
+    assign dma_csr.csr.config2.response_port                = 'b0;  // TODO:
+    assign dma_csr.csr.config2.programmable_burtst_enable   = 'b0;  // TODO:
+    assign dma_csr.csr.config2.prefetcher_enable            = 'b0;  // TODO:
+    assign dma_csr.csr.config2.packet_enable                = 'b0;  // TODO: 
+    assign dma_csr.csr.config2.max_stride                   = 'b0;  // TODO:
+    assign dma_csr.csr.config2.stride_enable                = 'b0;  // TODO:
+   
 
     // Use a copy of the MMIO interface as registers.
     ofs_plat_axi_mem_lite_if
@@ -183,8 +209,6 @@ module csr_mgr
             dma_csr.csr.wr_re_fill_level    <= 'b0;
             dma_csr.csr.resp_fill_level     <= 'b0;
             dma_csr.csr.seq_num             <= 'b0;
-            dma_csr.csr.config1             <= 'b0;
-            dma_csr.csr.config2             <= 'b0;
             dma_csr.csr.info                <= 'b0;
             mmio64_reg.rvalid <= 1'b0;
         end
@@ -257,6 +281,10 @@ module csr_mgr
         // There is no flow control on the module's outgoing read/write command
         // ports. If a request was trigger in the last cycle, it was sent.
 
+        if (dma_csr.descriptor.control.go) begin
+            dma_csr.descriptor.control.go <= 'b0;
+        end
+
         if (is_csr_write) begin
             // AXI addresses are always in byte address space. Ignore the
             // low 3 bits to index 64 bit CSRs. Ignore high bits and let the
@@ -269,7 +297,9 @@ module csr_mgr
 
               DMA_CONTROL:            dma_csr.csr.control           <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
             endcase
+            
         end
+
  
         if (!reset_n) begin
             dma_csr.descriptor.src_addr     <= 'b0;
@@ -282,6 +312,16 @@ module csr_mgr
             // wr_ddr_control.reset_engine <= 1;
             // wr_host_control.mode <= dma_pkg::DDR_TO_HOST;
             // wr_host_control.reset_engine <= 1;
+        end
+    end
+
+    // TODO: used for testing; remove
+    assign wr_host_control.descriptor = dma_csr.descriptor;
+    always_ff @(posedge clk) begin
+        if (!reset_n) begin
+            wr_host_control.reset_engine <= 'b0;
+            wr_host_control.mode <= 'b0;
+            wr_ddr_control <= 'b0;
         end
     end
 

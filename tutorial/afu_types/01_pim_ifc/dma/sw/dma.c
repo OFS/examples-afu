@@ -252,6 +252,7 @@ int dma(
     writeMMIO64(DMA_CSR_IDX_SRC_ADDR, 0x00FF);
     writeMMIO64(DMA_CSR_IDX_DEST_ADDR, 0xFF00);
     writeMMIO64(DMA_CSR_IDX_LENGTH, 0xF000);
+    writeMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL, 0xFFFFFFFF);
     printf("\n");
     print_csrs();
     return 0;
