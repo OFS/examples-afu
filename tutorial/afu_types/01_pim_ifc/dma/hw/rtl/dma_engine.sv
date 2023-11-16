@@ -34,7 +34,7 @@ module dma_engine #(
 
    logic wr_fsm_done;
    logic descriptor_fifo_rdack;
-   dma_pkg::t_descriptor descriptor;
+   dma_pkg::t_dma_descriptor descriptor;
    dma_fifo_if #(.MODE (MODE)) wr_fifo_if();
    dma_fifo_if #(.MODE (MODE)) rd_fifo_if();
 

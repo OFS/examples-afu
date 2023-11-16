@@ -10,9 +10,11 @@ module write_dest_fsm #(
    input logic clk,
    input logic reset_n,
    output logic wr_fsm_done,
-   input dma_pkg::t_descriptor descriptor,
+   input  dma_pkg::t_dma_descriptor descriptor,
    ofs_plat_axi_mem_if.to_src dest_mem,
    dma_fifo_if.wr_out  rd_fifo_if
 );
+
+
 
 endmodule

@@ -11,7 +11,7 @@ module read_src_fsm #(
    input logic clk,
    input logic reset_n,
    input logic wr_fsm_done,
-   input  dma_pkg::t_control control,
+   input  dma_pkg::t_dma_descriptor descriptor,
    output logic descriptor_fifo_rdack,
    ofs_plat_axi_mem_if.to_sink src_mem,
    dma_fifo_if.wr_out  wr_fifo_if
@@ -45,13 +45,13 @@ module read_src_fsm #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: 
-            if ((control.mode == MODE) & (control.descriptor.control == 1)) next = ADDR_SETUP; 
+            if ((descriptor.control.mode == MODE) & (descriptor.control.go == 1)) next = ADDR_SETUP; 
 
          state[ADDR_SETUP_BIT]:
             if (src_mem.arvalid & src_mem.arready) next = CP_RSP_TO_FIFO;
 
          state[CP_RSP_TO_FIFO_BIT]:
-            if (src_mem.rvalid & src_mem.rready & src_mem.rlast) next = WAIT_FOR_WR_RSP;
+            if (src_mem.rvalid & src_mem.rready & src_mem.r.last) next = WAIT_FOR_WR_RSP;
 
          state[WAIT_FOR_WR_RSP_BIT]:
             if (wr_fsm_done) next = IDLE;
@@ -64,7 +64,6 @@ module read_src_fsm #(
   always_ff @(posedge clk) begin
      if (!reset_n) begin
         src_mem.arvalid       <= 1'b0;
-        src_mem.rvalid        <= 1'b0;
         src_mem.wvalid        <= 1'b0;
         src_mem.awvalid       <= 1'b0;
         descriptor_fifo_rdack <= 1'b0;
@@ -76,11 +75,11 @@ module read_src_fsm #(
            end 
            
            state[ADDR_SETUP_BIT]: begin
-               src_mem.arvalid <= 1'b1;
-               src_mem.araddr  <= control.descriptor.src_addr;
-               src_mem.arlen   <= control.descriptor.length;
-               src_mem.arburst <= control.descriptor.burst;
-               src_mem.arsize  <= control.descriptor.size;
+               src_mem.arvalid  <= 1'b1;
+               src_mem.ar.addr  <= descriptor.src_addr;
+               src_mem.ar.len   <= descriptor.length;
+               src_mem.ar.burst <= 0;
+               src_mem.ar.size  <= 0;
            end
            
            state[CP_RSP_TO_FIFO_BIT]: begin
