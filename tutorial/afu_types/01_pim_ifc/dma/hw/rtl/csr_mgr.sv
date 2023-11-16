@@ -31,13 +31,8 @@ module csr_mgr
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
     // !!RP Is this still enough? 
-    output dma_pkg::t_control wr_host_control,
-    input  dma_pkg::t_status  wr_host_status,
-
-    // Write engine control - initiate a write of num_lines from addr when enable is set.
-    // Write data comes from a read. For a given read/write pair, num_lines must match.
-    output dma_pkg::t_control wr_ddr_control,
-    input  dma_pkg::t_status wr_ddr_status
+    output dma_pkg::t_control control,
+    input  dma_pkg::t_status  status
     );
 
     // Each interface names its associated clock and reset.
@@ -308,20 +303,15 @@ module csr_mgr
             dma_csr.descriptor.control      <= 'b0;
 
             dma_csr.csr.control             <= 'b0;
-            // wr_ddr_control.mode <= dma_pkg::DDR_TO_HOST;
-            // wr_ddr_control.reset_engine <= 1;
-            // wr_host_control.mode <= dma_pkg::DDR_TO_HOST;
-            // wr_host_control.reset_engine <= 1;
         end
     end
 
     // TODO: used for testing; remove
-    assign wr_host_control.descriptor = dma_csr.descriptor;
+    assign control.descriptor = dma_csr.descriptor;
     always_ff @(posedge clk) begin
         if (!reset_n) begin
-            wr_host_control.reset_engine <= 'b0;
-            wr_host_control.mode <= 'b0;
-            wr_ddr_control <= 'b0;
+            control.reset_engine <= 'b0;
+            control.mode <= 'b0;
         end
     end
 

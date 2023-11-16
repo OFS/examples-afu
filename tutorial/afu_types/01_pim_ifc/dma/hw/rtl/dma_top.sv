@@ -45,10 +45,8 @@ module dma_top
     //
     // ====================================================================
 
-    dma_pkg::t_control wr_host_control;
-    dma_pkg::t_status  wr_host_status;
-    dma_pkg::t_control wr_ddr_control;
-    dma_pkg::t_status  wr_ddr_status;
+    dma_pkg::t_control csr_control;
+    dma_pkg::t_status  csr_status;
 
     csr_mgr #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT),
@@ -60,16 +58,11 @@ module dma_top
     ) csr_mgr_inst (
         .mmio64_to_afu,
 
-        .wr_ddr_control,
-        .wr_ddr_status,
-
-        .wr_host_control,
-        .wr_host_status
+        .control(csr_control),
+        .status(csr_status)
     );
 
-
-    logic notEmpty_host;  // TODO: used for testing; remove
-
+    logic notEmpty;  // TODO: used for testing; remove
     ofs_plat_prim_fifo_bram #(
       .N_DATA_BITS  ($bits(dma_pkg::t_control)),
       .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
@@ -77,37 +70,17 @@ module dma_top
       .clk,
       .reset_n,
 
-      .enq_data(wr_host_control),
-      .enq_en(wr_host_control.descriptor.control.go),
+      .enq_data(csr_control),
+      .enq_en(csr_control.descriptor.control.go),
       .notFull(),
       .almostFull(),
 
       .first(),
-      .deq_en(notEmpty_host),
-      .notEmpty(notEmpty_host)
+      .deq_en(notEmpty),
+      .notEmpty(notEmpty)
 
     );
 
-    
-    logic notEmpty_ddr;  // TODO: used for testing; remove
-
-    ofs_plat_prim_fifo_bram #(
-      .N_DATA_BITS  ($bits(dma_pkg::t_control)),
-      .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
-    ) ddr_descriptor_fifo (
-      .clk,
-      .reset_n,
-
-      .enq_data(wr_ddr_control),
-      .enq_en(wr_ddr_control.descriptor.control.go),
-      .notFull(),
-      .almostFull(),
-
-      .first(),
-      .deq_en(notEmpty_ddr),
-      .notEmpty(notEmpty_ddr)
-
-    );
 
     // ====================================================================
     //
@@ -243,7 +216,7 @@ module dma_top
     assign ddr_mem_wr.rvalid  = 1'b0;
     assign ddr_mem_wr.arready = 1'b0;
    
-
+    // TODO: revised descriptor fifo
     dma_engine #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
     ) write_ddr_engine (
@@ -251,8 +224,8 @@ module dma_top
         .dest_mem (ddr_mem_wr),
 
         // Commands
-        .control (wr_ddr_control),
-        .status  (wr_ddr_status)
+        .control (csr_control),
+        .status  (csr_status)
     );
 
     // ====================================================================
@@ -269,6 +242,8 @@ module dma_top
     //
     // Write Host Engine
     //
+    // TODO: revised descriptor fifo
+    dma_pkg::t_status temp_status;
     dma_engine #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
     ) write_host_engine (
@@ -276,8 +251,8 @@ module dma_top
         .dest_mem (host_mem_wr),
 
         // Commands
-        .control (wr_host_control),
-        .status  (wr_host_status)
+        .control (csr_control),
+        .status  (temp_status)
     );
 
 endmodule
