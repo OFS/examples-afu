@@ -2,10 +2,13 @@ dma.json
 ofs_plat_afu.sv
 
 dma_pkg.sv
+dma_fifo_if.sv
 dma_top.sv
-dma_engine.sv
 csr_mgr.sv
 counter_multicycle.sv
+read_src_fsm.sv
+write_dest_fsm.sv
+dma_engine.sv
 
 # Pointer to software:
 # sw:../../sw/copy_engine
