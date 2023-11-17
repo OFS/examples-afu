@@ -14,40 +14,35 @@
 //
 
 module dma_engine #(
-    parameter MODE = dma_pkg::DDR_TO_HOST,
+    parameter MODE = dma_pkg::NONE,
     parameter MAX_REQS_IN_FLIGHT = 16
    )(
-      input logic clk,
-      input logic reset_n,
+      input logic  clk,
+      input logic  reset_n,
+      output logic descriptor_fifo_rdack,
+      input  dma_pkg::t_dma_descriptor descriptor,
       ofs_plat_axi_mem_if.to_sink src_mem,
-      ofs_plat_axi_mem_if.to_src  dest_mem,
+      ofs_plat_axi_mem_if.to_sink dest_mem,
 
-      input  dma_pkg::t_control control,
-      output dma_pkg::t_status status 
+      input  dma_pkg::t_dma_csr_control csr_control,
+      output dma_pkg::t_dma_csr_status  csr_status 
    );
 
    localparam SRC_ADDR_W  = (MODE == dma_pkg::DDR_TO_HOST) ? dma_pkg::DDR_ADDR_W : dma_pkg::HOST_ADDR_W;
    localparam DEST_ADDR_W = (MODE == dma_pkg::HOST_TO_DDR) ? dma_pkg::DDR_ADDR_W : dma_pkg::HOST_ADDR_W;
    localparam SRC_DATA_W  = (MODE == dma_pkg::DDR_TO_HOST) ? dma_pkg::HOST_DATA_W : dma_pkg::DDR_DATA_W;
    localparam DEST_DATA_W = (MODE == dma_pkg::HOST_TO_DDR) ? dma_pkg::HOST_DATA_W : dma_pkg::DDR_DATA_W;
-   localparam FIFO_DATA_W = dma_pkg::SRC_ADDR_W + dma_pkg::AXI_MM_DATA_W;
+   localparam FIFO_DATA_W = dma_pkg::AXI_MM_DATA_W;
 
    logic wr_fsm_done;
    logic descriptor_fifo_rdack;
-   dma_pkg::t_dma_descriptor descriptor;
-   dma_fifo_if #(.MODE (MODE)) wr_fifo_if();
-   dma_fifo_if #(.MODE (MODE)) rd_fifo_if();
+   dma_fifo_if #(.DATA_W (DEST_DATA_W)) wr_fifo_if();
+   dma_fifo_if #(.DATA_W (SRC_DATA_W))  rd_fifo_if();
 
    write_dest_fsm #(
-    .DATA_W (DEST_DATA_W)
+      .DATA_W (DEST_DATA_W)
    ) write_dest_fsm_inst (
-     //.clk,
-     //.reset_n,
-     //.wr_fsm_done,
-     //.descriptor,
-     //.dest_mem,
-     //.rd_fifo_if
-       .*
+      .*
    );
    
    ofs_plat_prim_fifo_bram #(
@@ -69,16 +64,9 @@ module dma_engine #(
    ); 
 
    read_src_fsm #(
-    .DATA_W (SRC_DATA_W),
-    .MODE (MODE)
+      .DATA_W (SRC_DATA_W)
    ) read_src_fsm_inst (
-       .*
-     //.clk,
-     //.reset_n,
-     //.wr_fsm_done,
-     //.control,
-     //.src_mem,
-     //.wr_fifo_if
+      .*
    );
 
 endmodule // copy_write_engine

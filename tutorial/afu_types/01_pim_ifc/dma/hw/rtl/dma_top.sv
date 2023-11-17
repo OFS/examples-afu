@@ -36,7 +36,7 @@ module dma_top
     // Maximum number of copy commands in flight. This is exposed in a CSR. It
     // is the host's responsibility not to exceed. The host can track completions
     // by requesting interrupts.
-    localparam MAX_REQS_IN_FLIGHT = 1024;
+    localparam MAX_REQS_IN_FLIGHT = 32;
 
     // ====================================================================
     //
@@ -45,8 +45,10 @@ module dma_top
     //
     // ====================================================================
 
-    dma_pkg::t_control csr_control;
-    dma_pkg::t_status  csr_status;
+    dma_pkg::t_dma_descriptor csr_descriptor;
+    dma_pkg::t_dma_descriptor dma_descriptor;
+    dma_pkg::t_dma_csr_status dma_csr_status;
+    dma_pkg::t_dma_csr_control dma_csr_control;
 
     csr_mgr #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT),
@@ -57,26 +59,26 @@ module dma_top
         .MAX_BURST_CNT(1 << host_mem.BURST_CNT_WIDTH_)
     ) csr_mgr_inst (
         .mmio64_to_afu,
-
-        .control(csr_control),
-        .status(csr_status)
+        .descriptor (csr_descriptor),
+        .control(dma_csr_control),
+        .status(dma_csr_status)
     );
 
     logic notEmpty;  // TODO: used for testing; remove
     ofs_plat_prim_fifo_bram #(
-      .N_DATA_BITS  ($bits(dma_pkg::t_control)),
+      .N_DATA_BITS  ($bits(dma_pkg::t_dma_descriptor)),
       .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
     ) host_descriptor_fifo (
       .clk,
       .reset_n,
 
-      .enq_data(csr_control),
-      .enq_en(csr_control.descriptor.control.go),
+      .enq_data(csr_descriptor),
+      .enq_en(csr_descriptor.control.go),
       .notFull(),
       .almostFull(),
 
-      .first(),
-      .deq_en(notEmpty),
+      .first(dma_descriptor),
+      .deq_en(descriptor_fifo_rdack),
       .notEmpty(notEmpty)
 
     );
@@ -222,10 +224,12 @@ module dma_top
     ) write_ddr_engine (
         .src_mem  (host_mem_rd),
         .dest_mem (ddr_mem_wr),
+        .descriptor_fifo_rdack (descriptor_fifo_rdack),
+        .descriptor            (dma_descriptor),
 
         // Commands
-        .control (csr_control),
-        .status  (csr_status)
+        .csr_control (dma_csr_control),
+        .csr_status  (dma_csr_status)
     );
 
     // ====================================================================
@@ -243,16 +247,16 @@ module dma_top
     // Write Host Engine
     //
     // TODO: revised descriptor fifo
-    dma_pkg::t_status temp_status;
-    dma_engine #(
-        .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
-    ) write_host_engine (
-        .src_mem  (ddr_mem_rd),
-        .dest_mem (host_mem_wr),
+  //dma_pkg::t_status temp_status;
+  //dma_engine #(
+  //    .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
+  //) write_host_engine (
+  //    .src_mem  (ddr_mem_rd),
+  //    .dest_mem (host_mem_wr),
 
-        // Commands
-        .control (csr_control),
-        .status  (temp_status)
-    );
+  //    // Commands
+  //    .control (csr_control),
+  //    .status  (temp_status)
+  //);
 
 endmodule

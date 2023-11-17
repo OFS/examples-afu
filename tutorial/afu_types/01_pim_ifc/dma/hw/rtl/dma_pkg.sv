@@ -90,11 +90,19 @@ package dma_pkg;
     localparam DDR_DATA_W = AXI_MM_DATA_W;
     localparam HOST_DATA_W = AXI_MM_DATA_W;
 
+
     typedef enum logic [1:0] {
+        OKAY,
+        EXOKAY,
+        SLVERR,
+        DECERR
+    } e_resp_enc;
+
+    typedef enum logic [1:0] {
+       NONE,
        HOST_TO_DDR, 
        DDR_TO_HOST, 
-       DDR_TO_DDR,
-       NONE
+       DDR_TO_DDR
     } e_dma_mode;
 
     typedef struct packed{
@@ -129,7 +137,11 @@ package dma_pkg;
     // =========================================================================
 
     typedef struct packed {
-      logic [21:0] rsvd_31_10;                    // 31:10
+      logic [15:0] rsvd_31_16;                    // 31:16
+      logic [1:0]  rd_resp_enc;                   // 15:14
+      logic        rd_rsp_err;                    // 13 
+      logic [1:0]  wr_resp_enc;                   // 12:11
+      logic        wr_rsp_err;                    // 10
       logic        irq;                           // 9
       logic        stopped_on_early_termination;  // 8
       logic        stopped_on_error;              // 7
@@ -143,7 +155,8 @@ package dma_pkg;
     } t_dma_csr_status;
 
     typedef struct packed {
-      logic [25:0] rsvd_31_6;                    // 31:6
+      logic [25:0] rsvd_31_6;                    // 31:8
+      e_dma_mode   mode;                         // 7:6
       logic        stop_descriptors;             // 5
       logic        global_interrupt_enable_mask; // 4
       logic        stop_early_on_termination;    // 3
@@ -233,28 +246,28 @@ package dma_pkg;
     // =========================================================================
 
     // Adjust as needed
-    typedef struct packed {
-      logic reset_engine;
-      e_dma_mode mode;
-      t_dma_descriptor descriptor;
-    } t_control;
+ // typedef struct packed {
+ //   logic reset_engine;
+ //   e_dma_mode mode;
+ //   t_dma_descriptor descriptor;
+ // } t_control;
 
-    typedef struct {
-        logic [31:0] descriptor_fifo_count;
-        logic [31:0] descriptor_fifo_depth;
-        logic [15:0] rd_state;
-        logic [15:0] wr_state;
-    } t_status;
+ // typedef struct {
+ //     logic [31:0] descriptor_fifo_count;
+ //     logic [31:0] descriptor_fifo_depth;
+ //     logic [15:0] rd_state;
+ //     logic [15:0] wr_state;
+ // } t_status;
 
-    typedef struct {
-       logic [HOST_ADDR_W-1:0]   host_addr;
-       logic [AXI_MM_DATA_W-1:0] data;
-   } t_fifo_host_data;
+ // typedef struct {
+ //    logic [HOST_ADDR_W-1:0]   host_addr;
+ //    logic [AXI_MM_DATA_W-1:0] data;
+ //} t_fifo_host_data;
 
-    typedef struct {
-       logic [DDR_ADDR_W-1:0]    ddr_addr;
-       logic [AXI_MM_DATA_W-1:0] data;
-   } t_fifo_ddr_data;
+ // typedef struct {
+ //    logic [DDR_ADDR_W-1:0]    ddr_addr;
+ //    logic [AXI_MM_DATA_W-1:0] data;
+ //} t_fifo_ddr_data;
 
 
     // // Read commands (CSR to read engine)

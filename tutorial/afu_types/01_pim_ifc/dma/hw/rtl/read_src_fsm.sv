@@ -5,8 +5,7 @@
 
 
 module read_src_fsm #(
-   parameter DATA_W = 512,
-   parameter MODE = dma_pkg::DDR_TO_HOST
+   parameter DATA_W = 512
 )(
    input logic clk,
    input logic reset_n,
@@ -45,7 +44,7 @@ module read_src_fsm #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: 
-            if ((descriptor.control.mode == MODE) & (descriptor.control.go == 1)) next = ADDR_SETUP; 
+            if (descriptor.control.go == 1) next = ADDR_SETUP; 
 
          state[ADDR_SETUP_BIT]:
             if (src_mem.arvalid & src_mem.arready) next = CP_RSP_TO_FIFO;
@@ -55,9 +54,7 @@ module read_src_fsm #(
 
          state[WAIT_FOR_WR_RSP_BIT]:
             if (wr_fsm_done) next = IDLE;
-
       endcase
-
    end
 
 

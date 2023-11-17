@@ -31,8 +31,9 @@ module csr_mgr
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
     // !!RP Is this still enough? 
-    output dma_pkg::t_control control,
-    input  dma_pkg::t_status  status
+    output dma_pkg::t_dma_descriptor descriptor,
+    output dma_pkg::t_dma_csr_control control,
+    input  dma_pkg::t_dma_csr_status  status
     );
 
     // Each interface names its associated clock and reset.
@@ -307,10 +308,9 @@ module csr_mgr
     end
 
     // TODO: used for testing; remove
-    assign control.descriptor = dma_csr.descriptor;
     always_ff @(posedge clk) begin
         if (!reset_n) begin
-            control.reset_engine <= 'b0;
+            control.reset_dispatcher <= 'b0;
             control.mode <= 'b0;
         end
     end
