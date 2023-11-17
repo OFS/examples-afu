@@ -280,7 +280,7 @@ int copy_engine(
     // this algorithm could be improved and is wasting most of the 2MB pages,
     // but it works for an example. Runs will fail if 2MB huge pages aren't
     // available.
-    ssize_t buf_size = getpagesize();
+    ssize_t buf_size = sysconf(_SC_PAGESIZE);
     if (chunk_size > buf_size) buf_size *= 512;
 
     src_bufs = alloc_buffer_group(accel_handle, buf_size, num_bufs);
@@ -317,7 +317,7 @@ int copy_engine(
     else
     {
         // No interrupts. The status line will be written only by the FPGA.
-        status_line = (volatile uint64_t*)alloc_buffer(accel_handle, getpagesize(),
+        status_line = (volatile uint64_t*)alloc_buffer(accel_handle, sysconf(_SC_PAGESIZE),
                                                        &status_wsid, &status_line_pa);
         assert(NULL != status_line);
 

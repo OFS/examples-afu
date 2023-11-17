@@ -64,11 +64,15 @@ module dma_top
         .status(dma_csr_status)
     );
 
-    logic notEmpty;  // TODO: used for testing; remove
+    logic descriptor_fifo_not_empty;
+    assign csr_status.descriptor_fifo_empty = descriptor_fifo_not_empty;
+    logic descriptor_fifo_not_full;
+    assign csr_status.descriptor_fifo_full = descriptor_fifo_not_full;
+
     ofs_plat_prim_fifo_bram #(
       .N_DATA_BITS  ($bits(dma_pkg::t_dma_descriptor)),
       .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
-    ) host_descriptor_fifo (
+    ) descriptor_fifo (
       .clk,
       .reset_n,
 
@@ -80,7 +84,6 @@ module dma_top
       .first(dma_descriptor),
       .deq_en(descriptor_fifo_rdack),
       .notEmpty(notEmpty)
-
     );
 
 
@@ -219,6 +222,7 @@ module dma_top
     assign ddr_mem_wr.arready = 1'b0;
    
     // TODO: revised descriptor fifo
+    dma_pkg::t_status temp_status_1;
     dma_engine #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
     ) write_ddr_engine (

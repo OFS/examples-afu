@@ -77,7 +77,6 @@ package dma_pkg;
     //
     // =========================================================================
 
-
     // Put CSR info in its own pkg?
     // Addresses/offsets:
     
@@ -103,11 +102,12 @@ package dma_pkg;
        HOST_TO_DDR, 
        DDR_TO_HOST, 
        DDR_TO_DDR
-    } e_dma_mode;
+    
+} e_dma_mode;
 
     typedef struct packed{
       logic       go;                           // 31
-      logic [1:0] rsvd_30_29;                   // 30:28
+      logic [2:0] rsvd_30_28;                   // 30:28
       e_dma_mode  mode;                         // 27:26
       logic       wait_for_write_responses;     // 25
       logic       early_done_enable;            // 24
@@ -246,61 +246,19 @@ package dma_pkg;
     // =========================================================================
 
     // Adjust as needed
- // typedef struct packed {
- //   logic reset_engine;
- //   e_dma_mode mode;
- //   t_dma_descriptor descriptor;
- // } t_control;
+    typedef struct packed {
+      logic reset_engine;
+      e_dma_mode mode;
+      t_dma_descriptor descriptor;
+    } t_control;
 
- // typedef struct {
- //     logic [31:0] descriptor_fifo_count;
- //     logic [31:0] descriptor_fifo_depth;
- //     logic [15:0] rd_state;
- //     logic [15:0] wr_state;
- // } t_status;
-
- // typedef struct {
- //    logic [HOST_ADDR_W-1:0]   host_addr;
- //    logic [AXI_MM_DATA_W-1:0] data;
- //} t_fifo_host_data;
-
- // typedef struct {
- //    logic [DDR_ADDR_W-1:0]    ddr_addr;
- //    logic [AXI_MM_DATA_W-1:0] data;
- //} t_fifo_ddr_data;
-
-
-    // // Read commands (CSR to read engine)
-    // typedef struct {
-    //     logic enable;
-    //     t_cmd_num_lines num_lines;
-    //     t_cmd_addr addr;
-    // } t_rd_cmd;
-
-    // // Read state (read engine to CSR)
-    // typedef struct {
-    //     logic [63:0] num_lines_read;
-    // } t_rd_state;
-
-    // // Write commands (CSR to write engine)
-    // typedef struct {
-    //     logic enable;
-    //     t_cmd_num_lines num_lines;
-    //     t_cmd_addr addr;
-    //     t_cmd_intr_id intr_id;
-    //     logic intr_ack;
-
-    //     // When use_mem_status is set, the write engine writes completion
-    //     // updates to the mem_status_addr. Completions are indicated by
-    //     // writing the total number of commands processed. When use_mem_status
-    //     // is clear, the write engine indicates generates interrupts.
-    //     logic use_mem_status;
-    //     t_cmd_addr mem_status_addr;
-    // } t_wr_cmd;
-
-    // // Write state (write engine to CSR)
-    // typedef struct {
-    //     logic [63:0] num_lines_write;
-    // } t_wr_state;
+    typedef struct {
+        logic [31:0] descriptor_fifo_count;
+        logic        descriptor_fifo_empty;
+        logic        descriptor_fifo_full;
+        logic [29:0] descriptor_fifo_depth;
+        logic [15:0] rd_state;
+        logic [15:0] wr_state;
+    } t_status;
 
 endpackage : dma_pkg

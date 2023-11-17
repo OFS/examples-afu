@@ -85,6 +85,18 @@ module csr_mgr
 
 
     // Read only fixed register assignments
+    assign dma_csr.csr.status.rsvd_31_10                    ='b0;   
+    assign dma_csr.csr.status.irq                           ='b0;   // TODO:
+    assign dma_csr.csr.status.stopped_on_early_termination  ='b0;   // TODO:
+    assign dma_csr.csr.status.stopped_on_error              ='b0;   // TODO:
+    assign dma_csr.csr.status.resetting                     ='b0;   // TODO:
+    assign dma_csr.csr.status.stopped                       ='b0;   // TODO:
+    assign dma_csr.csr.status.response_buffer_full          ='b0;   // TODO:
+    assign dma_csr.csr.status.response_buffer_empty         ='b0;   // TODO:
+    assign dma_csr.csr.status.descriptor_buffer_full        = status.descriptor_fifo_full;
+    assign dma_csr.csr.status.descriptor_buffer_empty       = status.descriptor_fifo_empty;
+    assign dma_csr.csr.status.busy                          ='b0;   // TODO:
+
     assign dma_csr.csr.config1.max_byte                 = 'b0;  // TODO:
     assign dma_csr.csr.config1.max_burst_count          = 'b0;  // TODO:
     assign dma_csr.csr.config1.error_width              = 'b0;  // TODO:
@@ -201,7 +213,6 @@ module csr_mgr
         end
 
         if (!reset_n) begin
-            dma_csr.csr.status              <= 'b0;
             dma_csr.csr.wr_re_fill_level    <= 'b0;
             dma_csr.csr.resp_fill_level     <= 'b0;
             dma_csr.csr.seq_num             <= 'b0;
@@ -308,10 +319,11 @@ module csr_mgr
     end
 
     // TODO: used for testing; remove
+    assign control.mode       = dma_csr.descriptor.control.dma_mode;
+    assign control.descriptor = dma_csr.descriptor;
     always_ff @(posedge clk) begin
         if (!reset_n) begin
-            control.reset_dispatcher <= 'b0;
-            control.mode <= 'b0;
+            control.reset_engine <= 'b0;
         end
     end
 
