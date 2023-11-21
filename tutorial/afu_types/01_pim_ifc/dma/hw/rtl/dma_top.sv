@@ -14,18 +14,16 @@
 // mapping is created by the AFU.
 //
 
-module dma_top
-  #(
+module dma_top #(
     parameter NUM_LOCAL_MEM_BANKS = 1
-    )
-   (
+)(
     // CSR interface (MMIO on the host)
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
     // Host memory (DMA)
     ofs_plat_axi_mem_if.to_sink host_mem,
     ofs_plat_axi_mem_if.to_sink ddr_mem[NUM_LOCAL_MEM_BANKS]
-    );
+);
 
     // Each interface names its associated clock and reset.
     logic clk;
@@ -45,10 +43,18 @@ module dma_top
     //
     // ====================================================================
 
-    dma_pkg::t_dma_descriptor csr_descriptor;
-    dma_pkg::t_dma_descriptor dma_descriptor;
+    dma_pkg::t_dma_csr_map dma_csr_map; //RO
     dma_pkg::t_dma_csr_status dma_csr_status;
-    dma_pkg::t_dma_csr_control dma_csr_control;
+    dma_pkg::t_dma_csr_status dma_status;
+    dma_pkg::t_dma_descriptor dma_descriptor;
+    logic descriptor_fifo_not_empty;
+    logic descriptor_fifo_not_full;
+
+    always_comb begin
+       dma_csr_status = dma_status;
+       dma_csr_status.descriptor_buffer_empty = descriptor_fifo_not_empty;
+       dma_csr_status.descriptor_buffer_full = descriptor_fifo_not_full;
+    end
 
     csr_mgr #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT),
@@ -59,15 +65,9 @@ module dma_top
         .MAX_BURST_CNT(1 << host_mem.BURST_CNT_WIDTH_)
     ) csr_mgr_inst (
         .mmio64_to_afu,
-        .descriptor (csr_descriptor),
-        .control(dma_csr_control),
-        .status(dma_csr_status)
+        .dma_csr_map,
+        .dma_csr_status
     );
-
-    logic descriptor_fifo_not_empty;
-    assign csr_status.descriptor_fifo_empty = descriptor_fifo_not_empty;
-    logic descriptor_fifo_not_full;
-    assign csr_status.descriptor_fifo_full = descriptor_fifo_not_full;
 
     ofs_plat_prim_fifo_bram #(
       .N_DATA_BITS  ($bits(dma_pkg::t_dma_descriptor)),
@@ -76,14 +76,14 @@ module dma_top
       .clk,
       .reset_n,
 
-      .enq_data(csr_descriptor),
-      .enq_en(csr_descriptor.control.go),
-      .notFull(),
+      .enq_data(dma_csr_map.descriptor),
+      .enq_en(dma_csr_map.descriptor.descriptor_control.go),
+      .notFull(descriptor_fifo_not_full),
       .almostFull(),
 
       .first(dma_descriptor),
       .deq_en(descriptor_fifo_rdack),
-      .notEmpty(notEmpty)
+      .notEmpty(descriptor_fifo_not_empty)
     );
 
 
@@ -97,34 +97,16 @@ module dma_top
     // will be connected to the read engine and the write ports unused.
     // This will split the read channels from the write channels but keep
     // a single interface type.  Do this for each host/ddr read/write
-    ofs_plat_axi_mem_if
-      #(
+    ofs_plat_axi_mem_if #(
         // Copy the configuration from host_mem
         `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
-        )
-      host_mem_rd();
-
-    ofs_plat_axi_mem_if
-      #(
-        // Copy the configuration from host_mem
-        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
-        )
-      host_mem_wr();
+    ) dest_mem();
 
 
-     ofs_plat_axi_mem_if
-      #(
+     ofs_plat_axi_mem_if #(
         // Copy the configuration from ddr_mem
         `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
-        )
-      ddr_mem_wr();
-
-     ofs_plat_axi_mem_if
-      #(
-        // Copy the configuration from ddr_mem
-        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
-        )
-      ddr_mem_rd();
+     ) src_mem();
 
     // > RP For testing
     genvar b;
@@ -139,128 +121,31 @@ module dma_top
         end
     endgenerate
     // < RP For testing
-
-    // Connect read ports to host_mem
-    assign host_mem_rd.clk = clk;
-    assign host_mem_rd.reset_n = reset_n;
-    assign host_mem_rd.instance_number = host_mem.instance_number;
-
-    assign host_mem.arvalid = host_mem_rd.arvalid;
-    assign host_mem_rd.arready = host_mem.arready;
-    assign host_mem.ar = host_mem_rd.ar;
-
-    assign host_mem_rd.rvalid = host_mem.rvalid;
-    assign host_mem.rready = host_mem_rd.rready;
-    assign host_mem_rd.r = host_mem.r;
-
-    // Write unused
-    assign host_mem_rd.bvalid  = 1'b0;
-    assign host_mem_rd.awready = 1'b0;
-    assign host_mem_rd.wready  = 1'b0;
-
-    // Connect read ports to host_mem
-    assign host_mem_wr.clk             = clk;
-    assign host_mem_wr.reset_n         = reset_n;
-    assign host_mem_wr.instance_number = host_mem.instance_number;
-
-    assign host_mem.awvalid    = host_mem_wr.awvalid;
-    assign host_mem_wr.awready = host_mem.awready;
-    assign host_mem.aw         = host_mem_wr.aw;
-
-    assign host_mem.wvalid     = host_mem_wr.wvalid;
-    assign host_mem_wr.wready  = host_mem.wready;
-    assign host_mem.w          = host_mem_wr.w;
-
-    assign host_mem_wr.bvalid = host_mem.bvalid;
-    assign host_mem.bready    = host_mem_wr.bready;
-    assign host_mem_wr.b      = host_mem.b;
-
-    // Read unused
-    assign host_mem_wr.rvalid  = 1'b0;
-    assign host_mem_wr.arready = 1'b0;
-
-
-
- 
- // Connect read ports to ddr_mem
-    assign ddr_mem_rd.clk = clk;
-    assign ddr_mem_rd.reset_n = reset_n;
-    assign ddr_mem_rd.instance_number = ddr_mem[0].instance_number;
-
-    assign ddr_mem[0].arvalid = ddr_mem_rd.arvalid;
-    assign ddr_mem_rd.arready = ddr_mem[0].arready;
-    assign ddr_mem[0].ar = ddr_mem_rd.ar;
-
-    assign ddr_mem_rd.rvalid = ddr_mem[0].rvalid;
-    assign ddr_mem[0].rready = ddr_mem_rd.rready;
-    assign ddr_mem_rd.r = ddr_mem[0].r;
-
-    // Write unused
-    assign ddr_mem_rd.bvalid  = 1'b0;
-    assign ddr_mem_rd.awready = 1'b0;
-    assign ddr_mem_rd.wready  = 1'b0;
-
-    // Connect read ports to ddr_mem
-    assign ddr_mem_wr.clk             = clk;
-    assign ddr_mem_wr.reset_n         = reset_n;
-    assign ddr_mem_wr.instance_number = ddr_mem[0].instance_number;
-
-    assign ddr_mem[0].awvalid    = ddr_mem_wr.awvalid;
-    assign ddr_mem_wr.awready = ddr_mem[0].awready;
-    assign ddr_mem[0].aw         = ddr_mem_wr.aw;
-
-    assign ddr_mem[0].wvalid     = ddr_mem_wr.wvalid;
-    assign ddr_mem_wr.wready  = ddr_mem[0].wready;
-    assign ddr_mem[0].w          = ddr_mem_wr.w;
-
-    assign ddr_mem_wr.bvalid = ddr_mem[0].bvalid;
-    assign ddr_mem[0].bready    = ddr_mem_wr.bready;
-    assign ddr_mem_wr.b      = ddr_mem[0].b;
-
-    // Read unused
-    assign ddr_mem_wr.rvalid  = 1'b0;
-    assign ddr_mem_wr.arready = 1'b0;
+    
+    dma_axi_mm_mux #(
+        .NUM_LOCAL_MEM_BANKS (NUM_LOCAL_MEM_BANKS)
+    )(
+        .mode (dma_descriptor.descriptor_control.mode),
+        .src_mem,
+        .dest_mem,
+        .host_mem,
+        .ddr_mem
+    );
    
-    // TODO: revised descriptor fifo
-    dma_pkg::t_status temp_status_1;
     dma_engine #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
     ) write_ddr_engine (
-        .src_mem  (host_mem_rd),
-        .dest_mem (ddr_mem_wr),
-        .descriptor_fifo_rdack (descriptor_fifo_rdack),
-        .descriptor            (dma_descriptor),
+        .clk,
+        .reset_n,
+        .src_mem,
+        .dest_mem,
+        .descriptor_fifo_rdack,
+        .descriptor (dma_descriptor),
 
         // Commands
-        .csr_control (dma_csr_control),
-        .csr_status  (dma_csr_status)
+        .csr_control (dma_csr_map.control),
+        .csr_status  (dma_status)
     );
 
-    // ====================================================================
-    //
-    // Write engine
-    //
-    // ====================================================================
-
-    // Declare a copy of the host memory write interface. The write ports
-    // will be connected to the write engine and the read ports unused.
-    // This will split the read channels from the write channels but keep
-    // a single interface type.
-
-    //
-    // Write Host Engine
-    //
-    // TODO: revised descriptor fifo
-  //dma_pkg::t_status temp_status;
-  //dma_engine #(
-  //    .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
-  //) write_host_engine (
-  //    .src_mem  (ddr_mem_rd),
-  //    .dest_mem (host_mem_wr),
-
-  //    // Commands
-  //    .control (csr_control),
-  //    .status  (temp_status)
-  //);
 
 endmodule

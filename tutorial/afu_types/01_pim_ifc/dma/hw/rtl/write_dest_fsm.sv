@@ -10,12 +10,13 @@ module write_dest_fsm #(
    input logic clk,
    input logic reset_n,
    output logic wr_fsm_done,
+   input  dma_pkg::t_dma_descriptor descriptor,
    output dma_pkg::t_dma_csr_status csr_status,
    input  dma_pkg::t_dma_csr_control csr_control,
-   input  dma_pkg::t_dma_descriptor descriptor,
    ofs_plat_axi_mem_if.to_sink dest_mem,
    dma_fifo_if.rd_out  rd_fifo_if
 );
+   logic wr_resp_last;
 
    `define NUM_STATES 5
 
@@ -36,7 +37,6 @@ module write_dest_fsm #(
       XXX             = 'x
    } state, next;
 
-   logic wr_resp_last;
    assign wr_resp_last = dest_mem.bvalid & dest_mem.bready & dest_mem.w.last;
    
    always_ff @(posedge clk) begin
@@ -48,7 +48,7 @@ module write_dest_fsm #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: 
-            if (descriptor.control.go == 1) next = ADDR_SETUP; 
+            if (descriptor.descriptor_control.go == 1) next = ADDR_SETUP; 
 
          state[ADDR_SETUP_BIT]:
             if (dest_mem.awvalid & dest_mem.awready) next = RD_FIFO_WR_DEST;

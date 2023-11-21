@@ -44,7 +44,7 @@ module read_src_fsm #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: 
-            if (descriptor.control.go == 1) next = ADDR_SETUP; 
+            if (descriptor.descriptor_control.go == 1) next = ADDR_SETUP; 
 
          state[ADDR_SETUP_BIT]:
             if (src_mem.arvalid & src_mem.arready) next = CP_RSP_TO_FIFO;

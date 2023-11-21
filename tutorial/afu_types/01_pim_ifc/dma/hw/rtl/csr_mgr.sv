@@ -21,21 +21,16 @@
 
 import dma_pkg::*;
 
-module csr_mgr
-  #(
+module csr_mgr #(
     parameter MAX_REQS_IN_FLIGHT = 32,
     parameter MAX_BURST_CNT = 8
-    )
-   (
+)(
     // CSR interface (MMIO on the host)
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,
 
-    // !!RP Is this still enough? 
-    output dma_pkg::t_dma_descriptor descriptor,
-    output dma_pkg::t_dma_csr_control control,
-    input  dma_pkg::t_dma_csr_status  status
-    );
-
+    input  t_dma_csr_status dma_csr_status, //status    
+    output t_dma_csr_map    dma_csr_map   //control, descriptor, etc
+);
     // Each interface names its associated clock and reset.
     logic clk;
     assign clk = mmio64_to_afu.clk;
@@ -49,7 +44,6 @@ module csr_mgr
     //
     // =========================================================================
 
-    t_dma_csr dma_csr;
     
     //
     // The AXI lite interface is defined in
@@ -70,55 +64,57 @@ module csr_mgr
     //
 
     // 64 bit device feature header where the type [63:60] is 0x1 (AFU) and [40] is set (EOL)
-    assign dma_csr.header.dfh = 'h1000010000000000;
+    assign dma_csr_map.header.dfh = 'h1000010000000000;
 
     // The AFU ID is a unique ID for a given program.  Here we generated
     // one with the "uuidgen" program and stored it in the AFU's JSON file.
     // ASE and synthesis setup scripts automatically invoke afu_json_mgr
     // to extract the UUID into afu_json_info.vh.
     logic [127:0] afu_id = `AFU_ACCEL_UUID;
-    assign dma_csr.header.guid_l = afu_id[63:0];
-    assign dma_csr.header.guid_h = afu_id[127:64];
+    assign dma_csr_map.header.guid_l = afu_id[63:0];
+    assign dma_csr_map.header.guid_h = afu_id[127:64];
 
-    assign dma_csr.header.rsvd_1 = 'hDEAD_BEEF_ABCD_EF01;
-    assign dma_csr.header.rsvd_2 = 'hBADD_C0DE_FEDC_BA10;
+    assign dma_csr_map.header.rsvd_1 = 'hDEAD_BEEF_ABCD_EF01;
+    assign dma_csr_map.header.rsvd_2 = 'hBADD_C0DE_FEDC_BA10;
 
 
     // Read only fixed register assignments
-    assign dma_csr.csr.status.rsvd_31_10                    ='b0;   
-    assign dma_csr.csr.status.irq                           ='b0;   // TODO:
-    assign dma_csr.csr.status.stopped_on_early_termination  ='b0;   // TODO:
-    assign dma_csr.csr.status.stopped_on_error              ='b0;   // TODO:
-    assign dma_csr.csr.status.resetting                     ='b0;   // TODO:
-    assign dma_csr.csr.status.stopped                       ='b0;   // TODO:
-    assign dma_csr.csr.status.response_buffer_full          ='b0;   // TODO:
-    assign dma_csr.csr.status.response_buffer_empty         ='b0;   // TODO:
-    assign dma_csr.csr.status.descriptor_buffer_full        = status.descriptor_fifo_full;
-    assign dma_csr.csr.status.descriptor_buffer_empty       = status.descriptor_fifo_empty;
-    assign dma_csr.csr.status.busy                          ='b0;   // TODO:
+    assign dma_csr_map.status.descriptor_buffer_count       ='b0;        
+    assign dma_csr_map.status.rd_state                      ='b0;
+    assign dma_csr_map.status.wr_state                      ='b0;
+    assign dma_csr_map.status.irq                           ='b0;   // TODO:
+    assign dma_csr_map.status.stopped_on_early_termination  ='b0;   // TODO:
+    assign dma_csr_map.status.stopped_on_error              ='b0;   // TODO:
+    assign dma_csr_map.status.resetting                     ='b0;   // TODO:
+    assign dma_csr_map.status.stopped                       ='b0;   // TODO:
+    assign dma_csr_map.status.response_buffer_full          ='b0;   // TODO:
+    assign dma_csr_map.status.response_buffer_empty         ='b0;   // TODO:
+    assign dma_csr_map.status.descriptor_buffer_full        = dma_csr_status.descriptor_buffer_full;
+    assign dma_csr_map.status.descriptor_buffer_empty       = dma_csr_status.descriptor_buffer_empty;
+    assign dma_csr_map.status.busy                          ='b0;   // TODO:
 
-    assign dma_csr.csr.config1.max_byte                 = 'b0;  // TODO:
-    assign dma_csr.csr.config1.max_burst_count          = 'b0;  // TODO:
-    assign dma_csr.csr.config1.error_width              = 'b0;  // TODO:
-    assign dma_csr.csr.config1.error_enable             = 'b0;  // TODO:
-    assign dma_csr.csr.config1.enhanced_features        = 'b0;  // TODO:
-    assign dma_csr.csr.config1.dma_mode                 = 'b0;  // TODO:
-    assign dma_csr.csr.config1.descriptor_fifo_depth    = DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED;;
-    assign dma_csr.csr.config1.data_width               = 'b0;  // TODO:
-    assign dma_csr.csr.config1.data_fifo_depth          = 'b0;  // TODO:
-    assign dma_csr.csr.config1.channel_width            = 'b0;  // TODO:
-    assign dma_csr.csr.config1.channel_enable           = 'b0;  // TODO:
-    assign dma_csr.csr.config1.burst_wrapping_support   = 'b0;  // TODO:
-    assign dma_csr.csr.config1.burst_enable             = 'b0;  // TODO:
+    assign dma_csr_map.config1.max_byte                 = 'b0;  // TODO:
+    assign dma_csr_map.config1.max_burst_count          = 'b0;  // TODO:
+    assign dma_csr_map.config1.error_width              = 'b0;  // TODO:
+    assign dma_csr_map.config1.error_enable             = 'b0;  // TODO:
+    assign dma_csr_map.config1.enhanced_features        = 'b0;  // TODO:
+    assign dma_csr_map.config1.dma_mode                 = 'b0;  // TODO:
+    assign dma_csr_map.config1.descriptor_fifo_depth    = DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED;;
+    assign dma_csr_map.config1.data_width               = 'b0;  // TODO:
+    assign dma_csr_map.config1.data_fifo_depth          = 'b0;  // TODO:
+    assign dma_csr_map.config1.channel_width            = 'b0;  // TODO:
+    assign dma_csr_map.config1.channel_enable           = 'b0;  // TODO:
+    assign dma_csr_map.config1.burst_wrapping_support   = 'b0;  // TODO:
+    assign dma_csr_map.config1.burst_enable             = 'b0;  // TODO:
  
-    assign dma_csr.csr.config2.rsvd                         = 'b0;
-    assign dma_csr.csr.config2.transfer_type                = 'b0;  // TODO:
-    assign dma_csr.csr.config2.response_port                = 'b0;  // TODO:
-    assign dma_csr.csr.config2.programmable_burtst_enable   = 'b0;  // TODO:
-    assign dma_csr.csr.config2.prefetcher_enable            = 'b0;  // TODO:
-    assign dma_csr.csr.config2.packet_enable                = 'b0;  // TODO: 
-    assign dma_csr.csr.config2.max_stride                   = 'b0;  // TODO:
-    assign dma_csr.csr.config2.stride_enable                = 'b0;  // TODO:
+    assign dma_csr_map.config2.rsvd                         = 'b0;
+    assign dma_csr_map.config2.transfer_type                = 'b0;  // TODO:
+    assign dma_csr_map.config2.response_port                = 'b0;  // TODO:
+    assign dma_csr_map.config2.programmable_burtst_enable   = 'b0;  // TODO:
+    assign dma_csr_map.config2.prefetcher_enable            = 'b0;  // TODO:
+    assign dma_csr_map.config2.packet_enable                = 'b0;  // TODO: 
+    assign dma_csr_map.config2.max_stride                   = 'b0;  // TODO:
+    assign dma_csr_map.config2.stride_enable                = 'b0;  // TODO:
    
 
     // Use a copy of the MMIO interface as registers.
@@ -186,25 +182,25 @@ module csr_mgr
             // low 3 bits to index 64 bit CSRs. Ignore high bits and let the
             // address space wrap.
             case (mmio64_reg.ar.addr[7:3])
-              DMA_DFH:                 mmio64_reg.r.data <= dma_csr.header.dfh;
-              DMA_GUID_L:              mmio64_reg.r.data <= dma_csr.header.guid_l;
-              DMA_GUID_H:              mmio64_reg.r.data <= dma_csr.header.guid_h;
-              DMA_RSVD_1:              mmio64_reg.r.data <= dma_csr.header.rsvd_1;
-              DMA_RSVD_2:              mmio64_reg.r.data <= dma_csr.header.rsvd_2;
+              DMA_DFH:                 mmio64_reg.r.data <= dma_csr_map.header.dfh;
+              DMA_GUID_L:              mmio64_reg.r.data <= dma_csr_map.header.guid_l;
+              DMA_GUID_H:              mmio64_reg.r.data <= dma_csr_map.header.guid_h;
+              DMA_RSVD_1:              mmio64_reg.r.data <= dma_csr_map.header.rsvd_1;
+              DMA_RSVD_2:              mmio64_reg.r.data <= dma_csr_map.header.rsvd_2;
 
-              DMA_SRC_ADDR:            mmio64_reg.r.data <= dma_csr.descriptor.src_addr;
-              DMA_DEST_ADDR:           mmio64_reg.r.data <= dma_csr.descriptor.dest_addr;
-              DMA_LENGTH:              mmio64_reg.r.data <= dma_csr.descriptor.length;
-              DMA_DESCRIPTOR_CONTROL:  mmio64_reg.r.data <= dma_csr.descriptor.control;
+              DMA_SRC_ADDR:            mmio64_reg.r.data <= dma_csr_map.descriptor.src_addr;
+              DMA_DEST_ADDR:           mmio64_reg.r.data <= dma_csr_map.descriptor.dest_addr;
+              DMA_LENGTH:              mmio64_reg.r.data <= dma_csr_map.descriptor.length;
+              DMA_DESCRIPTOR_CONTROL:  mmio64_reg.r.data <= dma_csr_map.descriptor.descriptor_control;
 
-              DMA_STATUS:              mmio64_reg.r.data <= dma_csr.csr.status;
-              DMA_CONTROL:             mmio64_reg.r.data <= dma_csr.csr.control;
-              DMA_WR_RE_FILL_LEVEL:    mmio64_reg.r.data <= dma_csr.csr.wr_re_fill_level;
-              DMA_RESP_FILL_LEVEL:     mmio64_reg.r.data <= dma_csr.csr.resp_fill_level;
-              DMA_WR_RE_SEQ_NUM:       mmio64_reg.r.data <= dma_csr.csr.seq_num;
-              DMA_CONFIG_1:            mmio64_reg.r.data <= dma_csr.csr.config1;
-              DMA_CONFIG_2:            mmio64_reg.r.data <= dma_csr.csr.config2;
-              DMA_TYPE_VERSION:        mmio64_reg.r.data <= dma_csr.csr.info;
+              DMA_STATUS:              mmio64_reg.r.data <= dma_csr_map.status;
+              DMA_CONTROL:             mmio64_reg.r.data <= dma_csr_map.control;
+              DMA_WR_RE_FILL_LEVEL:    mmio64_reg.r.data <= dma_csr_map.wr_re_fill_level;
+              DMA_RESP_FILL_LEVEL:     mmio64_reg.r.data <= dma_csr_map.resp_fill_level;
+              DMA_WR_RE_SEQ_NUM:       mmio64_reg.r.data <= dma_csr_map.seq_num;
+              DMA_CONFIG_1:            mmio64_reg.r.data <= dma_csr_map.config1;
+              DMA_CONFIG_2:            mmio64_reg.r.data <= dma_csr_map.config2;
+              DMA_TYPE_VERSION:        mmio64_reg.r.data <= dma_csr_map.info;
             endcase
 
         end else if (mmio64_to_afu.rready) begin
@@ -213,10 +209,10 @@ module csr_mgr
         end
 
         if (!reset_n) begin
-            dma_csr.csr.wr_re_fill_level    <= 'b0;
-            dma_csr.csr.resp_fill_level     <= 'b0;
-            dma_csr.csr.seq_num             <= 'b0;
-            dma_csr.csr.info                <= 'b0;
+            dma_csr_map.wr_re_fill_level    <= 'b0;
+            dma_csr_map.resp_fill_level     <= 'b0;
+            dma_csr_map.seq_num             <= 'b0;
+            dma_csr_map.info                <= 'b0;
             mmio64_reg.rvalid <= 1'b0;
         end
     end
@@ -288,8 +284,8 @@ module csr_mgr
         // There is no flow control on the module's outgoing read/write command
         // ports. If a request was trigger in the last cycle, it was sent.
 
-        if (dma_csr.descriptor.control.go) begin
-            dma_csr.descriptor.control.go <= 'b0;
+        if (dma_csr_map.descriptor.descriptor_control.go) begin
+            dma_csr_map.descriptor.descriptor_control.go <= 'b0;
         end
 
         if (is_csr_write) begin
@@ -297,35 +293,34 @@ module csr_mgr
             // low 3 bits to index 64 bit CSRs. Ignore high bits and let the
             // address space wrap.
             case (mmio64_reg.aw.addr[7:3])
-              DMA_SRC_ADDR:           dma_csr.descriptor.src_addr   <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
-              DMA_DEST_ADDR:          dma_csr.descriptor.dest_addr  <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
-              DMA_LENGTH:             dma_csr.descriptor.length     <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
-              DMA_DESCRIPTOR_CONTROL: dma_csr.descriptor.control    <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
+              DMA_SRC_ADDR:           dma_csr_map.descriptor.src_addr           <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
+              DMA_DEST_ADDR:          dma_csr_map.descriptor.dest_addr          <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
+              DMA_LENGTH:             dma_csr_map.descriptor.length             <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
+              DMA_DESCRIPTOR_CONTROL: dma_csr_map.descriptor.descriptor_control <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
 
-              DMA_CONTROL:            dma_csr.csr.control           <= mmio64_reg.w.data[$bits(dma_csr.descriptor.src_addr)-1 : 0];
+              DMA_CONTROL:            dma_csr_map.control           <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
             endcase
             
         end
 
  
         if (!reset_n) begin
-            dma_csr.descriptor.src_addr     <= 'b0;
-            dma_csr.descriptor.dest_addr    <= 'b0;
-            dma_csr.descriptor.length       <= 'b0;
-            dma_csr.descriptor.control      <= 'b0;
-
-            dma_csr.csr.control             <= 'b0;
+            dma_csr_map.descriptor.src_addr           <= 'b0;
+            dma_csr_map.descriptor.dest_addr          <= 'b0;
+            dma_csr_map.descriptor.length             <= 'b0;
+            dma_csr_map.descriptor.descriptor_control <= 'b0;
+            dma_csr_map.control                       <= 'b0;
         end
     end
 
-    // TODO: used for testing; remove
-    assign control.mode       = dma_csr.descriptor.control.dma_mode;
-    assign control.descriptor = dma_csr.descriptor;
-    always_ff @(posedge clk) begin
-        if (!reset_n) begin
-            control.reset_engine <= 'b0;
-        end
-    end
+  //// TODO: used for testing; remove
+  //assign control.mode       = dma_csr_map.descriptor.control.mode;
+  //assign control.descriptor = dma_csr_map.descriptor;
+  //always_ff @(posedge clk) begin
+  //    if (!reset_n) begin
+  //        control.reset_engine <= 'b0;
+  //    end
+  //end
 
     // synthesis translate_off
     always_ff @(posedge clk) begin

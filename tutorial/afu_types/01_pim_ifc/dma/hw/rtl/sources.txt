@@ -9,6 +9,7 @@ counter_multicycle.sv
 read_src_fsm.sv
 write_dest_fsm.sv
 dma_engine.sv
+dma_axi_mm_mux.sv
 
 # Pointer to software:
 # sw:../../sw/copy_engine

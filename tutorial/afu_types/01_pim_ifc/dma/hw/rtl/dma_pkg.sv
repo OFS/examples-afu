@@ -4,6 +4,8 @@
 `include "ofs_plat_if.vh"
 
 package dma_pkg;
+  `define NUM_RD_STATES 4
+  `define NUM_WR_STATES 4
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   //
   // Parameters
@@ -102,8 +104,7 @@ package dma_pkg;
        HOST_TO_DDR, 
        DDR_TO_HOST, 
        DDR_TO_DDR
-    
-} e_dma_mode;
+    } e_dma_mode;
 
     typedef struct packed{
       logic       go;                           // 31
@@ -127,7 +128,7 @@ package dma_pkg;
         logic [SRC_ADDR_W-1:0] src_addr;
         logic [DEST_ADDR_W-1:0] dest_addr;
         logic [LENGTH_W-1:0] length;
-        t_dma_descriptor_control control;
+        t_dma_descriptor_control descriptor_control;
     } t_dma_descriptor;
 
     // =========================================================================
@@ -137,7 +138,9 @@ package dma_pkg;
     // =========================================================================
 
     typedef struct packed {
-      logic [15:0] rsvd_31_16;                    // 31:16
+      logic [$clog2(DMA_DESCRIPTOR_FIFO_DEPTH)-1:0] descriptor_buffer_count;
+      logic [`NUM_RD_STATES-1:0] rd_state;        // 23:20
+      logic [`NUM_WR_STATES-1:0] wr_state;        // 19:16
       logic [1:0]  rd_resp_enc;                   // 15:14
       logic        rd_rsp_err;                    // 13 
       logic [1:0]  wr_resp_enc;                   // 12:11
@@ -155,8 +158,7 @@ package dma_pkg;
     } t_dma_csr_status;
 
     typedef struct packed {
-      logic [25:0] rsvd_31_6;                    // 31:8
-      e_dma_mode   mode;                         // 7:6
+      logic [25:0] rsvd_31_6;                    // 31:6
       logic        stop_descriptors;             // 5
       logic        global_interrupt_enable_mask; // 4
       logic        stop_early_on_termination;    // 3
@@ -215,14 +217,16 @@ package dma_pkg;
     } t_dma_csr_info;
 
     typedef struct packed {
-      t_dma_csr_status                      status;
-      t_dma_csr_control                     control;
-      t_dma_csr_wr_re_fill_level            wr_re_fill_level;
-      t_dma_csr_resp_fill_level             resp_fill_level;
-      t_dma_csr_seq_num                     seq_num;
-      t_dma_csr_config1                     config1;
-      t_dma_csr_config2                     config2;
-      t_dma_csr_info                        info;
+      t_dma_header               header;
+      t_dma_descriptor           descriptor;
+      t_dma_csr_status           status;
+      t_dma_csr_control          control;
+      t_dma_csr_wr_re_fill_level wr_re_fill_level;
+      t_dma_csr_resp_fill_level  resp_fill_level;
+      t_dma_csr_seq_num          seq_num;
+      t_dma_csr_config1          config1;
+      t_dma_csr_config2          config2;
+      t_dma_csr_info             info;
     } t_dma_csr_map;
 
 
@@ -232,11 +236,11 @@ package dma_pkg;
     //
     // =========================================================================
 
-    typedef struct packed {
-      t_dma_header              header;
-      t_dma_descriptor          descriptor;
-      t_dma_csr_map             csr;
-    } t_dma_csr;
+  //typedef struct packed {
+  //  //t_dma_header              header;
+  //  //t_dma_descriptor          descriptor;
+  //  t_dma_csr_map             csr;
+  //} t_dma_csr;
 
 
     // =========================================================================
@@ -246,19 +250,10 @@ package dma_pkg;
     // =========================================================================
 
     // Adjust as needed
-    typedef struct packed {
-      logic reset_engine;
-      e_dma_mode mode;
-      t_dma_descriptor descriptor;
-    } t_control;
-
-    typedef struct {
-        logic [31:0] descriptor_fifo_count;
-        logic        descriptor_fifo_empty;
-        logic        descriptor_fifo_full;
-        logic [29:0] descriptor_fifo_depth;
-        logic [15:0] rd_state;
-        logic [15:0] wr_state;
-    } t_status;
+  //typedef struct packed {
+  //  logic reset_engine;
+  //  e_dma_mode mode;
+  //  t_dma_descriptor descriptor;
+  //} t_control;
 
 endpackage : dma_pkg
