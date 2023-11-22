@@ -47,15 +47,19 @@ module read_src_fsm #(
       unique case (1'b1)
          state[IDLE_BIT]: 
             if (descriptor.descriptor_control.go == 1) next = ADDR_SETUP; 
+            else next = IDLE;
 
          state[ADDR_SETUP_BIT]:
             if (src_mem.arvalid & src_mem.arready) next = CP_RSP_TO_FIFO;
+            else next = ADDR_SETUP;
 
          state[CP_RSP_TO_FIFO_BIT]:
             if (src_mem.rvalid & src_mem.rready & src_mem.r.last) next = WAIT_FOR_WR_RSP;
+            else next = CP_RSP_TO_FIFO;
 
          state[WAIT_FOR_WR_RSP_BIT]:
             if (wr_fsm_done) next = IDLE;
+            else next = WAIT_FOR_WR_RSP;
       endcase
    end
 
@@ -68,12 +72,12 @@ module read_src_fsm #(
         descriptor_fifo_rdack <= 1'b0;
      end else begin
         unique case (1'b1)
-           state[IDLE_BIT]: begin
+           next[IDLE_BIT]: begin
               src_mem.arvalid <= 1'b0;
               descriptor_fifo_rdack <= 1'b0;
            end 
            
-           state[ADDR_SETUP_BIT]: begin
+           next[ADDR_SETUP_BIT]: begin
                src_mem.arvalid  <= 1'b1;
                src_mem.ar.addr  <= descriptor.src_addr;
                src_mem.ar.len   <= descriptor.length;
@@ -81,13 +85,13 @@ module read_src_fsm #(
                src_mem.ar.size  <= 0;
            end
            
-           state[CP_RSP_TO_FIFO_BIT]: begin
+           next[CP_RSP_TO_FIFO_BIT]: begin
                src_mem.arvalid <= 1'b0;
                wr_fifo_if.wr_data <= src_mem.r.data;
                wr_fifo_if.wr_en   <= !wr_fifo_if.not_full & src_mem.rvalid;
            end
            
-           state[WAIT_FOR_WR_RSP_BIT]:
+           next[WAIT_FOR_WR_RSP_BIT]:
               if (wr_fsm_done) descriptor_fifo_rdack <= 1'b1;
           
        endcase

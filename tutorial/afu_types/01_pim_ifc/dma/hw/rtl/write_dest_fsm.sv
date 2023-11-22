@@ -51,19 +51,24 @@ module write_dest_fsm #(
       unique case (1'b1)
          state[IDLE_BIT]: 
             if (descriptor.descriptor_control.go == 1) next = ADDR_SETUP; 
+            else next = IDLE;
 
          state[ADDR_SETUP_BIT]:
             if (dest_mem.awvalid & dest_mem.awready) next = RD_FIFO_WR_DEST;
+            else next = ADDR_SETUP;
 
          state[RD_FIFO_WR_DEST_BIT]:
             if (dest_mem.wvalid & dest_mem.wready & dest_mem.w.last) next = WAIT_FOR_WR_RSP;
+            else next = RD_FIFO_WR_DEST;
 
          state[WAIT_FOR_WR_RSP_BIT]:
             if (wr_resp_last & (dest_mem.b.resp==dma_pkg::OKAY)) next = IDLE;
             else if (wr_resp_last & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
+            else next = WAIT_FOR_WR_RSP;
  
-         state[ERROR]:
+         state[ERROR_BIT]:
             if (csr_control.reset_dispatcher) next = IDLE;
+            else next = ERROR;
 
       endcase
    end
@@ -76,11 +81,11 @@ module write_dest_fsm #(
         rd_fifo_if.rd_en       <= 1'b0;
      end else begin
         unique case (1'b1)
-           state[IDLE_BIT]: begin
+           next[IDLE_BIT]: begin
               dest_mem.awvalid      <= 1'b0;
            end 
            
-           state[ADDR_SETUP_BIT]: begin
+           next[ADDR_SETUP_BIT]: begin
                dest_mem.awvalid  <= 1'b1;
                dest_mem.aw.addr  <= descriptor.dest_addr;
                dest_mem.aw.len   <= descriptor.length;
@@ -88,14 +93,18 @@ module write_dest_fsm #(
                dest_mem.aw.size  <= 0;
            end
            
-           state[RD_FIFO_WR_DEST_BIT]: begin
+           next[RD_FIFO_WR_DEST_BIT]: begin
                dest_mem.awvalid <= 1'b0;
                 dest_mem.w.data <= rd_fifo_if.rd_data;
                 rd_fifo_if.rd_en <= 1'b1;
            end
            
-           state[WAIT_FOR_WR_RSP_BIT]:
+           next[WAIT_FOR_WR_RSP_BIT]:
               wr_fsm_done <= 1'b1;
+
+           next[ERROR_BIT]: begin
+              csr_status.stopped_on_error <= 1'b1; 
+           end
           
        endcase
      end
