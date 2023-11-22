@@ -38,6 +38,8 @@ module write_dest_fsm #(
    } state, next;
 
    assign wr_resp_last = dest_mem.bvalid & dest_mem.bready & dest_mem.w.last;
+   assign dest_mem.bready = 1'b1;
+   assign dest_mem.rready = 1'b1;
    
    always_ff @(posedge clk) begin
       if (!reset_n) state <= IDLE;
@@ -71,6 +73,7 @@ module write_dest_fsm #(
         dest_mem.arvalid       <= 1'b0;
         dest_mem.wvalid        <= 1'b0;
         dest_mem.awvalid       <= 1'b0;
+        rd_fifo_if.rd_en       <= 1'b0;
      end else begin
         unique case (1'b1)
            state[IDLE_BIT]: begin

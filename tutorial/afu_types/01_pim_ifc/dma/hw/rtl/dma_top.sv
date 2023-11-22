@@ -47,6 +47,7 @@ module dma_top #(
     dma_pkg::t_dma_csr_status dma_csr_status;
     dma_pkg::t_dma_csr_status dma_status;
     dma_pkg::t_dma_descriptor dma_descriptor;
+    logic descriptor_fifo_rdack;
     logic descriptor_fifo_not_empty;
     logic descriptor_fifo_not_full;
 
@@ -82,7 +83,8 @@ module dma_top #(
       .almostFull(),
 
       .first(dma_descriptor),
-      .deq_en(descriptor_fifo_rdack),
+      //.deq_en(descriptor_fifo_rdack),
+      .deq_en(1'b0),
       .notEmpty(descriptor_fifo_not_empty)
     );
 
@@ -134,7 +136,7 @@ module dma_top #(
    
     dma_engine #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
-    ) write_ddr_engine (
+    ) dma_engine_inst (
         .clk,
         .reset_n,
         .src_mem,

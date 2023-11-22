@@ -33,7 +33,9 @@ module read_src_fsm #(
       XXX = 'x
    } state, next;
    
-   assign src_mem.rready = state[CP_RSP_TO_FIFO_BIT] ? wr_fifo_if.not_full : 0;
+   //assign src_mem.rready = state[CP_RSP_TO_FIFO_BIT] ? wr_fifo_if.not_full : 0;
+   assign src_mem.rready = 1'b1;
+   assign src_mem.bready = 1'b0;
 
    always_ff @(posedge clk) begin
       if (!reset_n) state <= IDLE;

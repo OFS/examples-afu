@@ -35,7 +35,6 @@ module dma_engine #(
    localparam FIFO_DATA_W = dma_pkg::AXI_MM_DATA_W;
 
    logic wr_fsm_done;
-   logic descriptor_fifo_rdack;
    dma_fifo_if #(.DATA_W (DEST_DATA_W)) wr_fifo_if();
    dma_fifo_if #(.DATA_W (SRC_DATA_W))  rd_fifo_if();
 
