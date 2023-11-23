@@ -82,6 +82,10 @@ module csr_mgr #(
     assign dma_csr_map.status.descriptor_buffer_count       ='b0;        
     assign dma_csr_map.status.rd_state                      ='b0;
     assign dma_csr_map.status.wr_state                      ='b0;
+    assign dma_csr_map.status.rd_resp_enc                   ='b0;   // TODO:
+    assign dma_csr_map.status.rd_rsp_err                    ='b0;   // TODO:
+    assign dma_csr_map.status.wr_resp_enc                   ='b0;   // TODO:
+    assign dma_csr_map.status.wr_rsp_err                    ='b0;   // TODO:
     assign dma_csr_map.status.irq                           ='b0;   // TODO:
     assign dma_csr_map.status.stopped_on_early_termination  ='b0;   // TODO:
     assign dma_csr_map.status.stopped_on_error              ='b0;   // TODO:

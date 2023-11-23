@@ -180,43 +180,61 @@ static void* intr_wait_thread(void *args)
 }
 
 void print_csrs(){
-    uint64_t dfh                = readMMIO64(DMA_CSR_IDX_DFH);
-    uint64_t guid_l             = readMMIO64(DMA_CSR_IDX_GUID_L);
-    uint64_t guid_h             = readMMIO64(DMA_CSR_IDX_GUID_H);
-    uint64_t rsvd_1             = readMMIO64(DMA_CSR_IDX_RSVD_1);
-    uint64_t rsvd_2             = readMMIO64(DMA_CSR_IDX_RSVD_2);
-    uint64_t src_addr           = readMMIO64(DMA_CSR_IDX_SRC_ADDR);
-    uint64_t dest_addr          = readMMIO64(DMA_CSR_IDX_DEST_ADDR);
-    uint64_t length             = readMMIO64(DMA_CSR_IDX_LENGTH);
-    uint64_t descriptor_control = readMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL);
-    uint64_t status             = readMMIO64(DMA_CSR_IDX_STATUS);
-    uint64_t csr_control        = readMMIO64(DMA_CSR_IDX_CONTROL);
-    uint64_t wr_re_fill_level   = readMMIO64(DMA_CSR_IDX_WR_RE_FILL_LEVEL);
-    uint64_t resp_fill_level    = readMMIO64(DMA_CSR_IDX_RESP_FILL_LEVEL);
-    uint64_t seq_num            = readMMIO64(DMA_CSR_IDX_WR_RE_SEQ_NUM);
-    uint64_t config1            = readMMIO64(DMA_CSR_IDX_CONFIG_1);
-    uint64_t config2            = readMMIO64(DMA_CSR_IDX_CONFIG_2);
-    uint64_t info               = readMMIO64(DMA_CSR_IDX_TYPE_VERSION);
-
     printf("AFU properties:\n");
+
+    uint64_t dfh = readMMIO64(DMA_CSR_IDX_DFH);
     printf("  DMA_DFH:                %016lX\n", dfh);
+
+    uint64_t guid_l = readMMIO64(DMA_CSR_IDX_GUID_L);
     printf("  DMA_GUID_L:             %016lX\n", guid_l);
+
+    uint64_t guid_h = readMMIO64(DMA_CSR_IDX_GUID_H);
     printf("  DMA_GUID_H:             %016lX\n", guid_h);
+
+    uint64_t rsvd_1 = readMMIO64(DMA_CSR_IDX_RSVD_1);
     printf("  DMA_RSVD_1:             %016lX\n", rsvd_1);
+
+    uint64_t rsvd_2 = readMMIO64(DMA_CSR_IDX_RSVD_2);
     printf("  DMA_RSVD_2:             %016lX\n", rsvd_2);
+
+    uint64_t src_addr = readMMIO64(DMA_CSR_IDX_SRC_ADDR);
     printf("  DMA_SRC_ADDR:           %016lX\n", src_addr);
+
+    uint64_t dest_addr = readMMIO64(DMA_CSR_IDX_DEST_ADDR);
     printf("  DMA_DEST_ADDR:          %016lX\n", dest_addr);
+
+    uint64_t length = readMMIO64(DMA_CSR_IDX_LENGTH);
     printf("  DMA_LENGTH:             %016lX\n", length);
+
+    uint64_t descriptor_control = readMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL);
     printf("  DMA_DESCRIPTOR_CONTROL: %016lX\n", descriptor_control);
+
+    uint64_t status = readMMIO64(DMA_CSR_IDX_STATUS);
     printf("  DMA_STATUS:             %016lX\n", status);
+
+    uint64_t csr_control = readMMIO64(DMA_CSR_IDX_CONTROL);
     printf("  DMA_CONTROL:            %016lX\n", csr_control);
+
+    uint64_t wr_re_fill_level = readMMIO64(DMA_CSR_IDX_WR_RE_FILL_LEVEL);
     printf("  DMA_WR_RE_FILL_LEVEL:   %016lX\n", wr_re_fill_level);
+
+    uint64_t resp_fill_level = readMMIO64(DMA_CSR_IDX_RESP_FILL_LEVEL);
     printf("  DMA_RESP_FILL_LEVEL:    %016lX\n", resp_fill_level);
+
+    uint64_t seq_num = readMMIO64(DMA_CSR_IDX_WR_RE_SEQ_NUM);
     printf("  DMA_WR_RE_SEQ_NUM:      %016lX\n", seq_num);
+
+    uint64_t config1 = readMMIO64(DMA_CSR_IDX_CONFIG_1);
     printf("  DMA_CONFIG_1:           %016lX\n", config1);
+
+    uint64_t config2 = readMMIO64(DMA_CSR_IDX_CONFIG_2);
     printf("  DMA_CONFIG_2:           %016lX\n", config2);
+
+    uint64_t info = readMMIO64(DMA_CSR_IDX_TYPE_VERSION);
     printf("  DMA_TYPE_VERSION:       %016lX\n", info);
+
     printf("\n");
+
 
 }
 
@@ -230,8 +248,12 @@ int dma(
     fpga_result r;
     pthread_t intr_thread = 0;
 
+    printf("1");
+
     s_accel_handle = accel_handle;
     s_is_ase_sim = is_ase_sim;
+
+    printf("2");
 
     // Get a pointer to the MMIO buffer for direct access. The OPAE functions will
     // be used with ASE since true MMIO isn't detected by the SW simulator.
@@ -247,12 +269,14 @@ int dma(
         s_mmio_buf = tmp_ptr;
     }
 
+    printf("3");
+
     // TODO: Testing
     print_csrs();
     writeMMIO64(DMA_CSR_IDX_SRC_ADDR, 0x00FF);
     writeMMIO64(DMA_CSR_IDX_DEST_ADDR, 0xFF00);
     writeMMIO64(DMA_CSR_IDX_LENGTH, 0xF000);
-    writeMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL, 0xFFFFFFFF);
+    writeMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL, 0x000F);
     printf("\n");
     print_csrs();
     return 0;
