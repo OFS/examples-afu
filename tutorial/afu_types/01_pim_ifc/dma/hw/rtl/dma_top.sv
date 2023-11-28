@@ -45,17 +45,42 @@ module dma_top #(
 
     dma_pkg::t_dma_csr_map dma_csr_map; //RO
     dma_pkg::t_dma_csr_status dma_csr_status;
-    dma_pkg::t_dma_csr_status dma_status;
+    dma_pkg::t_dma_csr_status wr_dest_status;
+    dma_pkg::t_dma_csr_status rd_src_status;
     dma_pkg::t_dma_descriptor dma_descriptor;
+    dma_fifo_if #(.DATA_W (dma_pkg::AXI_MM_DATA_W)) wr_desc_fifo_if();
+    dma_fifo_if #(.DATA_W (dma_pkg::AXI_MM_DATA_W)) rd_desc_fifo_if();
     logic descriptor_fifo_rdack;
     logic descriptor_fifo_not_empty;
     logic descriptor_fifo_not_full;
 
     always_comb begin
-       dma_csr_status = dma_status;
-       dma_csr_status.descriptor_buffer_empty = descriptor_fifo_not_empty;
-       dma_csr_status.descriptor_buffer_full = descriptor_fifo_not_full;
-    end
+       wr_desc_fifo_if.wr_data = dma_csr_map.descriptor;
+       wr_desc_fifo_if.wr_en   = dma_csr_map.descriptor.descriptor_control.go;
+     
+       dma_descriptor            = rd_desc_fifo_if.rd_data;
+       rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
+       descriptor_fifo_not_empty = rd_desc_fifo_if.not_empty;
+
+       dma_csr_status.descriptor_fifo_count        = 0;
+       dma_csr_status.rd_state                     = rd_src_status.rd_state;
+       dma_csr_status.wr_state                     = wr_dest_status.wr_state;
+       dma_csr_status.rd_resp_enc                  = '0;
+       dma_csr_status.rd_rsp_err                   = '0;
+       dma_csr_status.wr_resp_enc                  = '0;
+       dma_csr_status.wr_rsp_err                   = '0;
+       dma_csr_status.irq                          = '0;
+       dma_csr_status.stopped_on_early_termination = '0;
+       dma_csr_status.stopped_on_error             = '0; 
+       dma_csr_status.resetting                    = '0; 
+       dma_csr_status.stopped                      = '0; 
+       dma_csr_status.response_fifo_full           = 1'b0;
+       dma_csr_status.response_fifo_empty          = 1'b0;
+       dma_csr_status.descriptor_fifo_full         = ~wr_desc_fifo_if.not_full;
+       dma_csr_status.descriptor_fifo_empty        = ~rd_desc_fifo_if.not_empty;
+       dma_csr_status.busy                         = 1'b0;
+     end
+
 
     csr_mgr #(
         .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT),
@@ -77,15 +102,14 @@ module dma_top #(
       .clk,
       .reset_n,
 
-      .enq_data(dma_csr_map.descriptor),
-      .enq_en(dma_csr_map.descriptor.descriptor_control.go),
-      .notFull(descriptor_fifo_not_full),
+      .enq_data(wr_desc_fifo_if.wr_data),
+      .enq_en(wr_desc_fifo_if.wr_en),
+      .notFull(wr_desc_fifo_if.not_full),
       .almostFull(),
 
-      .first(dma_descriptor),
-      //.deq_en(descriptor_fifo_rdack),
-      .deq_en(1'b0),
-      .notEmpty(descriptor_fifo_not_empty)
+      .first(rd_desc_fifo_if.rd_data),
+      .deq_en(rd_desc_fifo_if.rd_en),
+      .notEmpty(rd_desc_fifo_if.not_empty)
     );
 
 
@@ -111,18 +135,18 @@ module dma_top #(
      ) src_mem();
 
     // > RP For testing
-    genvar b;
-    generate
-        for (b = 1; b < NUM_LOCAL_MEM_BANKS; b = b + 1)
-        begin : mb
-          assign ddr_mem[b].awvalid = 'b0;
-          assign ddr_mem[b].wvalid = 'b0;
-          assign ddr_mem[b].arvalid = 'b0;
-          assign ddr_mem[b].bready = 'b1;
-          assign ddr_mem[b].rready = 'b1;
-        end
-    endgenerate
-    // < RP For testing
+  genvar b;
+  generate
+      for (b = 1; b < NUM_LOCAL_MEM_BANKS; b = b + 1)
+      begin : mb
+        assign ddr_mem[b].awvalid = 'b0;
+        assign ddr_mem[b].wvalid = 'b0;
+        assign ddr_mem[b].arvalid = 'b0;
+        assign ddr_mem[b].bready = 'b1;
+        assign ddr_mem[b].rready = 'b1;
+      end
+  endgenerate
+  //// < RP For testing
     
     dma_axi_mm_mux #(
         .NUM_LOCAL_MEM_BANKS (NUM_LOCAL_MEM_BANKS)
@@ -141,12 +165,14 @@ module dma_top #(
         .reset_n,
         .src_mem,
         .dest_mem,
+        .descriptor_fifo_not_empty,
         .descriptor_fifo_rdack,
         .descriptor (dma_descriptor),
 
         // Commands
         .csr_control (dma_csr_map.control),
-        .csr_status  (dma_status)
+        .wr_dest_status,
+        .rd_src_status
     );
 
 

@@ -138,7 +138,7 @@ package dma_pkg;
     // =========================================================================
 
     typedef struct packed {
-      logic [$clog2(DMA_DESCRIPTOR_FIFO_DEPTH)-1:0] descriptor_buffer_count;
+      logic [$clog2(DMA_DESCRIPTOR_FIFO_DEPTH)-1:0] descriptor_fifo_count;
       logic [`NUM_RD_STATES-1:0] rd_state;        // 23:20
       logic [`NUM_WR_STATES-1:0] wr_state;        // 19:16
       logic [1:0]  rd_resp_enc;                   // 15:14
@@ -150,10 +150,10 @@ package dma_pkg;
       logic        stopped_on_error;              // 7
       logic        resetting;                     // 6
       logic        stopped;                       // 5
-      logic        response_buffer_full;          // 4
-      logic        response_buffer_empty;         // 3
-      logic        descriptor_buffer_full;        // 2
-      logic        descriptor_buffer_empty;       // 1
+      logic        response_fifo_full;            // 4
+      logic        response_fifo_empty;           // 3
+      logic        descriptor_fifo_full;          // 2
+      logic        descriptor_fifo_empty;         // 1
       logic        busy;                          // 0
     } t_dma_csr_status;
 

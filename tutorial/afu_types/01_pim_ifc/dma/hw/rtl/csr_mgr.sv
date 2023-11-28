@@ -79,7 +79,7 @@ module csr_mgr #(
 
 
     // Read only fixed register assignments
-    assign dma_csr_map.status.descriptor_buffer_count       ='b0;        
+    assign dma_csr_map.status.descriptor_fifo_count       ='b0;        
     assign dma_csr_map.status.rd_state                      ='b0;
     assign dma_csr_map.status.wr_state                      ='b0;
     assign dma_csr_map.status.rd_resp_enc                   ='b0;   // TODO:
@@ -91,10 +91,10 @@ module csr_mgr #(
     assign dma_csr_map.status.stopped_on_error              ='b0;   // TODO:
     assign dma_csr_map.status.resetting                     ='b0;   // TODO:
     assign dma_csr_map.status.stopped                       ='b0;   // TODO:
-    assign dma_csr_map.status.response_buffer_full          ='b0;   // TODO:
-    assign dma_csr_map.status.response_buffer_empty         ='b0;   // TODO:
-    assign dma_csr_map.status.descriptor_buffer_full        = dma_csr_status.descriptor_buffer_full;
-    assign dma_csr_map.status.descriptor_buffer_empty       = dma_csr_status.descriptor_buffer_empty;
+    assign dma_csr_map.status.response_fifo_full          ='b0;   // TODO:
+    assign dma_csr_map.status.response_fifo_empty         ='b0;   // TODO:
+    assign dma_csr_map.status.descriptor_fifo_full        = dma_csr_status.descriptor_fifo_full;
+    assign dma_csr_map.status.descriptor_fifo_empty       = dma_csr_status.descriptor_fifo_empty;
     assign dma_csr_map.status.busy                          ='b0;   // TODO:
 
     assign dma_csr_map.config1.max_byte                 = 'b0;  // TODO:
@@ -131,7 +131,7 @@ module csr_mgr #(
       mmio64_reg();
 
     // Is a CSR read request active this cycle? The test is simple because
-    // the mmio64_reg.arvalid can only be set when the read response buffer
+    // the mmio64_reg.arvalid can only be set when the read response fifo
     // is empty.
     logic is_csr_read;
     assign is_csr_read = mmio64_reg.arvalid;

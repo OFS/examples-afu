@@ -11,7 +11,7 @@ module write_dest_fsm #(
    input logic reset_n,
    output logic wr_fsm_done,
    input  dma_pkg::t_dma_descriptor descriptor,
-   output dma_pkg::t_dma_csr_status csr_status,
+   output dma_pkg::t_dma_csr_status wr_dest_status,
    input  dma_pkg::t_dma_csr_control csr_control,
    ofs_plat_axi_mem_if.to_sink dest_mem,
    dma_fifo_if.rd_out  rd_fifo_if
@@ -94,7 +94,8 @@ module write_dest_fsm #(
            end
            
            next[RD_FIFO_WR_DEST_BIT]: begin
-               dest_mem.awvalid <= 1'b0;
+                wr_dest_status.busy = 1;
+                dest_mem.awvalid <= 1'b0;
                 dest_mem.w.data <= rd_fifo_if.rd_data;
                 rd_fifo_if.rd_en <= 1'b1;
            end
@@ -103,7 +104,7 @@ module write_dest_fsm #(
               wr_fsm_done <= 1'b1;
 
            next[ERROR_BIT]: begin
-              csr_status.stopped_on_error <= 1'b1; 
+              wr_dest_status.stopped_on_error <= 1'b1; 
            end
           
        endcase

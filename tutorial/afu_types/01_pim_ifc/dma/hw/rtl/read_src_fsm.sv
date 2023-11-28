@@ -11,6 +11,8 @@ module read_src_fsm #(
    input logic reset_n,
    input logic wr_fsm_done,
    input  dma_pkg::t_dma_descriptor descriptor,
+   output dma_pkg::t_dma_csr_status rd_src_status, 
+   input logic descriptor_fifo_not_empty,
    output logic descriptor_fifo_rdack,
    ofs_plat_axi_mem_if.to_sink src_mem,
    dma_fifo_if.wr_out  wr_fifo_if
@@ -46,7 +48,7 @@ module read_src_fsm #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: 
-            if (descriptor.descriptor_control.go == 1) next = ADDR_SETUP; 
+            if (descriptor.descriptor_control.go == 1 & (descriptor_fifo_not_empty)) next = ADDR_SETUP; 
             else next = IDLE;
 
          state[ADDR_SETUP_BIT]:
@@ -86,6 +88,7 @@ module read_src_fsm #(
            end
            
            next[CP_RSP_TO_FIFO_BIT]: begin
+               rd_src_status.busy = 1;
                src_mem.arvalid <= 1'b0;
                wr_fifo_if.wr_data <= src_mem.r.data;
                wr_fifo_if.wr_en   <= !wr_fifo_if.not_full & src_mem.rvalid;

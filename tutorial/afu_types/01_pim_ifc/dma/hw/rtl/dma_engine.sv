@@ -17,15 +17,17 @@ module dma_engine #(
     parameter MODE = dma_pkg::NONE,
     parameter MAX_REQS_IN_FLIGHT = 16
    )(
-      input logic  clk,
-      input logic  reset_n,
+      input  logic  clk,
+      input  logic  reset_n,
+      input  logic descriptor_fifo_not_empty,
       output logic descriptor_fifo_rdack,
       input  dma_pkg::t_dma_descriptor descriptor,
       ofs_plat_axi_mem_if.to_sink src_mem,
       ofs_plat_axi_mem_if.to_sink dest_mem,
 
       input  dma_pkg::t_dma_csr_control csr_control,
-      output dma_pkg::t_dma_csr_status  csr_status 
+      output dma_pkg::t_dma_csr_status  wr_dest_status,
+      output dma_pkg::t_dma_csr_status  rd_src_status
    );
 
    localparam SRC_ADDR_W  = (MODE == dma_pkg::DDR_TO_HOST) ? dma_pkg::DDR_ADDR_W : dma_pkg::HOST_ADDR_W;
@@ -38,7 +40,7 @@ module dma_engine #(
    dma_fifo_if #(.DATA_W (DEST_DATA_W)) wr_fifo_if();
    dma_fifo_if #(.DATA_W (SRC_DATA_W))  rd_fifo_if();
 
-   write_dest_fsm #(
+     write_dest_fsm #(
       .DATA_W (DEST_DATA_W)
    ) write_dest_fsm_inst (
       .*
@@ -59,7 +61,7 @@ module dma_engine #(
       // Pop the next command if the read request was sent to the host
       .deq_en   (rd_fifo_if.rd_en),
       .notEmpty (rd_fifo_if.not_empty),
-      .first    (rd_fifo_if.rd_data) // {addr, payload}
+      .first    (rd_fifo_if.rd_data) 
    ); 
 
    read_src_fsm #(
