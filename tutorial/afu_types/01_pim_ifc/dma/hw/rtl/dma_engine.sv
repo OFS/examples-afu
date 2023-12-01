@@ -14,7 +14,7 @@
 //
 
 module dma_engine #(
-    parameter MODE = dma_pkg::NONE,
+    parameter MODE = dma_pkg::STAND_BY,
     parameter MAX_REQS_IN_FLIGHT = 16
    )(
       input  logic  clk,

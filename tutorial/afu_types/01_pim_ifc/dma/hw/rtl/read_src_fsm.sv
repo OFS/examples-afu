@@ -38,6 +38,7 @@ module read_src_fsm #(
    //assign src_mem.rready = state[CP_RSP_TO_FIFO_BIT] ? wr_fifo_if.not_full : 0;
    assign src_mem.rready = 1'b1;
    assign src_mem.bready = 1'b0;
+   
 
    always_ff @(posedge clk) begin
       if (!reset_n) state <= IDLE;
@@ -68,18 +69,22 @@ module read_src_fsm #(
 
   always_ff @(posedge clk) begin
      if (!reset_n) begin
+        rd_src_status.busy    <= 1'b0;
         src_mem.arvalid       <= 1'b0;
         src_mem.wvalid        <= 1'b0;
         src_mem.awvalid       <= 1'b0;
+        src_mem.ar            <= '0;
         descriptor_fifo_rdack <= 1'b0;
      end else begin
         unique case (1'b1)
            next[IDLE_BIT]: begin
+              rd_src_status.busy <= 0;
               src_mem.arvalid <= 1'b0;
               descriptor_fifo_rdack <= 1'b0;
            end 
            
            next[ADDR_SETUP_BIT]: begin
+               rd_src_status.busy <= 1;
                src_mem.arvalid  <= 1'b1;
                src_mem.ar.addr  <= descriptor.src_addr;
                src_mem.ar.len   <= descriptor.length;
@@ -88,8 +93,7 @@ module read_src_fsm #(
            end
            
            next[CP_RSP_TO_FIFO_BIT]: begin
-               rd_src_status.busy = 1;
-               src_mem.arvalid <= 1'b0;
+               src_mem.arvalid    <= 1'b0;
                wr_fifo_if.wr_data <= src_mem.r.data;
                wr_fifo_if.wr_en   <= !wr_fifo_if.not_full & src_mem.rvalid;
            end

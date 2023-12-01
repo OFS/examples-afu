@@ -22,6 +22,27 @@
 #define DMA_CSR_IDX_CONFIG_2           0xF
 #define DMA_CSR_IDX_TYPE_VERSION       0x10
 
+#define CONTROL_BUSY_BIT               1
+#define GET_CONTROL_BUSY(reg) ((1u << CONTROL_BUSY_BIT)&reg)
+
+
+
+//#define ACL_DMA_INST_ADDRESS_SPAN_EXTENDER_0_CNTL_BASE 0x200
+
+
+#define DMA_MEM_WINDOW_SPAN (4*1024)
+#define DMA_MEM_WINDOW_SPAN_MASK ((uint64_t)(DMA_MEM_WINDOW_SPAN-1))
+
+
+#define ACL_DMA_INST_ADDRESS_SPAN_EXTENDER_0_WINDOWED_SLAVE_BASE 0x1000
+#define MEM_WINDOW_MEM(dfh) (ACL_DMA_INST_ADDRESS_SPAN_EXTENDER_0_WINDOWED_SLAVE_BASE+dfh)
+
+
+
+
+
+int run_basic_ddr_dma_test(fpga_handle afc_handle);
+
 int dma(
     fpga_handle accel_handle, bool is_ase_sim,
     uint32_t chunk_size,
@@ -30,3 +51,5 @@ int dma(
     uint32_t max_reqs_in_flight);
 
 #endif // __DMA_H__
+
+

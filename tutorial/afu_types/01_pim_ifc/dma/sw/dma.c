@@ -246,14 +246,11 @@ int dma(
     uint32_t max_reqs_in_flight)
 {
     fpga_result r;
+    uint64_t desc_control;
     pthread_t intr_thread = 0;
-
-    printf("1");
 
     s_accel_handle = accel_handle;
     s_is_ase_sim = is_ase_sim;
-
-    printf("2");
 
     // Get a pointer to the MMIO buffer for direct access. The OPAE functions will
     // be used with ASE since true MMIO isn't detected by the SW simulator.
@@ -269,14 +266,20 @@ int dma(
         s_mmio_buf = tmp_ptr;
     }
 
-    printf("3");
-
     // TODO: Testing
     print_csrs();
     writeMMIO64(DMA_CSR_IDX_SRC_ADDR, 0x00FF);
     writeMMIO64(DMA_CSR_IDX_DEST_ADDR, 0xFF00);
-    writeMMIO64(DMA_CSR_IDX_LENGTH, 0xF000);
-    writeMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL, 0x000F);
+    writeMMIO64(DMA_CSR_IDX_LENGTH, 0x0010);
+    printf("About to write go bit");
+    writeMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL, 0x9400000F);
+    printf("Wrote go bit");
+    const uint64_t CONTROL_BUSY = 0x00000001;
+    printf("entering dowhile loop");
+    do {
+       desc_control = readMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL);
+       printf("Waitin for busy done.  DMA_DESCRIPTOR_CONTROL: %016lX\n", desc_control);
+    } while (desc_control & CONTROL_BUSY);
     printf("\n");
     print_csrs();
     return 0;

@@ -122,13 +122,11 @@ module csr_mgr #(
    
 
     // Use a copy of the MMIO interface as registers.
-    ofs_plat_axi_mem_lite_if
-      #(
+    ofs_plat_axi_mem_lite_if #(
         // PIM-provided macro to replicate identically sized instances of an
         // AXI lite interface.
         `OFS_PLAT_AXI_MEM_LITE_IF_REPLICATE_PARAMS(mmio64_to_afu)
-        )
-      mmio64_reg();
+    ) mmio64_reg();
 
     // Is a CSR read request active this cycle? The test is simple because
     // the mmio64_reg.arvalid can only be set when the read response fifo
@@ -213,11 +211,11 @@ module csr_mgr #(
         end
 
         if (!reset_n) begin
-            dma_csr_map.wr_re_fill_level    <= 'b0;
-            dma_csr_map.resp_fill_level     <= 'b0;
-            dma_csr_map.seq_num             <= 'b0;
-            dma_csr_map.info                <= 'b0;
-            mmio64_reg.rvalid <= 1'b0;
+            dma_csr_map.wr_re_fill_level <= 'b0;
+            dma_csr_map.resp_fill_level  <= 'b0;
+            dma_csr_map.seq_num          <= 'b0;
+            dma_csr_map.info             <= 'b0;
+            mmio64_reg.rvalid            <= 1'b0;
         end
     end
 
@@ -328,18 +326,20 @@ module csr_mgr #(
 
     // synthesis translate_off
     always_ff @(posedge clk) begin
-      //if (rd_cmd.enable && reset_n)
-      //begin
-      //    $display("CSR_MGR: Read 0x%0h lines, starting at addr 0x%0h",
-      //             rd_cmd.num_lines, rd_cmd.addr);
-      //end
+        if (is_csr_read && reset_n) begin
+            $display("CSR_MGR: Read addr 0x%0h",
+                     mmio64_reg.ar.addr);
+        end else if  (mmio64_to_afu.rready & mmio64_to_afu.rvalid & reset_n) begin
+            $display("CSR_MGR: Read Data: 0x%0h",  mmio64_to_afu.r.data);
+        end 
 
-      //if (wr_cmd.enable && reset_n)
-      //begin
-      //    $display("CSR_MGR: Write 0x%0h lines, starting at addr 0x%0h, %0s req comletion",
-      //             wr_cmd.num_lines, { wr_cmd.addr[$bits(wr_cmd.addr)-1 : 1], 1'b0 },
-      //             (wr_cmd.addr[0] ? "with" : "without"));
-      //end
+        if (is_csr_write && reset_n) begin
+            //if (mmio64_to_afu.awvalid && mmio64_to_afu.awready) begin
+               $display("CSR_MGR: Write addr 0x%0h, %0s req comletion",
+                        { mmio64_reg.aw.addr[$bits(mmio64_reg.aw.addr)-1 : 1], 1'b0 },
+                        (mmio64_reg.aw.addr[0] ? "with" : "without"));
+            //end
+        end
     end
     // synthesis translate_on
 

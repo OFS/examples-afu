@@ -48,8 +48,8 @@ module dma_top #(
     dma_pkg::t_dma_csr_status wr_dest_status;
     dma_pkg::t_dma_csr_status rd_src_status;
     dma_pkg::t_dma_descriptor dma_descriptor;
-    dma_fifo_if #(.DATA_W (dma_pkg::AXI_MM_DATA_W)) wr_desc_fifo_if();
-    dma_fifo_if #(.DATA_W (dma_pkg::AXI_MM_DATA_W)) rd_desc_fifo_if();
+    dma_fifo_if #(.DATA_W ($bits(dma_pkg::t_dma_descriptor))) wr_desc_fifo_if();
+    dma_fifo_if #(.DATA_W ($bits(dma_pkg::t_dma_descriptor))) rd_desc_fifo_if();
     logic descriptor_fifo_rdack;
     logic descriptor_fifo_not_empty;
     logic descriptor_fifo_not_full;
@@ -78,7 +78,7 @@ module dma_top #(
        dma_csr_status.response_fifo_empty          = 1'b0;
        dma_csr_status.descriptor_fifo_full         = ~wr_desc_fifo_if.not_full;
        dma_csr_status.descriptor_fifo_empty        = ~rd_desc_fifo_if.not_empty;
-       dma_csr_status.busy                         = 1'b0;
+       dma_csr_status.busy                         = wr_dest_status.busy | rd_src_status.busy;
      end
 
 
@@ -98,7 +98,7 @@ module dma_top #(
     ofs_plat_prim_fifo_bram #(
       .N_DATA_BITS  ($bits(dma_pkg::t_dma_descriptor)),
       .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
-    ) descriptor_fifo (
+    ) descriptor_fifo_inst (
       .clk,
       .reset_n,
 
@@ -150,7 +150,7 @@ module dma_top #(
     
     dma_axi_mm_mux #(
         .NUM_LOCAL_MEM_BANKS (NUM_LOCAL_MEM_BANKS)
-    )(
+    )dma_axi_mm_mux_inst(
         .mode (dma_descriptor.descriptor_control.mode),
         .src_mem,
         .dest_mem,

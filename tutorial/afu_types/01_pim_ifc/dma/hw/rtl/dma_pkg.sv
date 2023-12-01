@@ -100,7 +100,7 @@ package dma_pkg;
     } e_resp_enc;
 
     typedef enum logic [1:0] {
-       NONE,
+       STAND_BY,
        HOST_TO_DDR, 
        DDR_TO_HOST, 
        DDR_TO_DDR
