@@ -135,27 +135,41 @@ module dma_top #(
      ) src_mem();
 
     // > RP For testing
-  genvar b;
-  generate
-      for (b = 1; b < NUM_LOCAL_MEM_BANKS; b = b + 1)
-      begin : mb
-        assign ddr_mem[b].awvalid = 'b0;
-        assign ddr_mem[b].wvalid = 'b0;
-        assign ddr_mem[b].arvalid = 'b0;
-        assign ddr_mem[b].bready = 'b1;
-        assign ddr_mem[b].rready = 'b1;
-      end
-  endgenerate
-  //// < RP For testing
-    
+//   genvar b;
+//   generate
+//       for (b = 1; b < NUM_LOCAL_MEM_BANKS; b = b + 1)
+//       begin : mb
+//         assign ddr_mem[b].awvalid = 'b0;
+//         assign ddr_mem[b].wvalid = 'b0;
+//         assign ddr_mem[b].arvalid = 'b0;
+//         assign ddr_mem[b].bready = 'b1;
+//         assign ddr_mem[b].rready = 'b1;
+//       end
+//   endgenerate
+//   //// < RP For testing
+
+    ofs_plat_axi_mem_if #(
+      // Copy the configuration from ddr_mem
+      `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
+    ) selected_ddr_mem();
+
+    dma_ddr_selector #(
+        .NUM_LOCAL_MEM_BANKS (NUM_LOCAL_MEM_BANKS),
+        .ADDR_WIDTH(dma_pkg::SRC_ADDR_W) // SRC_ADDR_W := DEST_ADDR_W
+    ) ddr_selector (
+        .descriptor(dma_descriptor),
+        .selected_ddr_mem,
+        .ddr_mem
+     );
+
     dma_axi_mm_mux #(
         .NUM_LOCAL_MEM_BANKS (NUM_LOCAL_MEM_BANKS)
-    )dma_axi_mm_mux_inst(
+    )(
         .mode (dma_descriptor.descriptor_control.mode),
         .src_mem,
         .dest_mem,
         .host_mem,
-        .ddr_mem
+        .ddr_mem(selected_ddr_mem)
     );
    
     dma_engine #(

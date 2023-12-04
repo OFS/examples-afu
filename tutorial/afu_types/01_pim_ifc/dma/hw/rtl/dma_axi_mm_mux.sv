@@ -8,7 +8,7 @@ module dma_axi_mm_mux #(
    ofs_plat_axi_mem_if.to_source src_mem,
    ofs_plat_axi_mem_if.to_source dest_mem,
    ofs_plat_axi_mem_if.to_sink host_mem,
-   ofs_plat_axi_mem_if.to_sink ddr_mem[NUM_LOCAL_MEM_BANKS]
+   ofs_plat_axi_mem_if.to_sink ddr_mem
 );
 
 
@@ -47,15 +47,15 @@ module dma_axi_mm_mux #(
   always_comb begin
      case (mode) 
          dma_pkg::DDR_TO_HOST: begin 
-            `AXI_MM_ASSIGN(src_mem, ddr_mem[0], dest_mem, host_mem)
+            `AXI_MM_ASSIGN(src_mem, ddr_mem, dest_mem, host_mem)
          end
 
          dma_pkg::HOST_TO_DDR: begin 
-            `AXI_MM_ASSIGN(src_mem, host_mem, dest_mem, ddr_mem[0])
+            `AXI_MM_ASSIGN(src_mem, host_mem, dest_mem, ddr_mem)
          end
  
          default: begin 
-            `AXI_MM_ASSIGN(src_mem, ddr_mem[0], dest_mem, host_mem)
+            `AXI_MM_ASSIGN(src_mem, ddr_mem, dest_mem, host_mem)
          end
 
      endcase

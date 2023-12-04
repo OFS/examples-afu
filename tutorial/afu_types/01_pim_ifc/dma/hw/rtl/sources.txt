@@ -10,6 +10,7 @@ read_src_fsm.sv
 write_dest_fsm.sv
 dma_engine.sv
 dma_axi_mm_mux.sv
+dma_ddr_selector.sv
 
 # Pointer to software:
 # sw:../../sw/copy_engine
