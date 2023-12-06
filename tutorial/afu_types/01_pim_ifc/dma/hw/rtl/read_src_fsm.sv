@@ -95,11 +95,14 @@ module read_src_fsm #(
            next[CP_RSP_TO_FIFO_BIT]: begin
                src_mem.arvalid    <= 1'b0;
                wr_fifo_if.wr_data <= src_mem.r.data;
-               wr_fifo_if.wr_en   <= !wr_fifo_if.not_full & src_mem.rvalid;
+               wr_fifo_if.wr_en   <= wr_fifo_if.not_full & src_mem.rvalid;
            end
            
-           next[WAIT_FOR_WR_RSP_BIT]:
+           next[WAIT_FOR_WR_RSP_BIT]: begin
+              wr_fifo_if.wr_data <= src_mem.r.data;
+              wr_fifo_if.wr_en   <= wr_fifo_if.not_full & src_mem.rvalid & src_mem.r.last;
               if (wr_fsm_done) descriptor_fifo_rdack <= 1'b1;
+           end
           
        endcase
      end

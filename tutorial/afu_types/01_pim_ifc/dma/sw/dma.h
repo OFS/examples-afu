@@ -4,6 +4,8 @@
 #ifndef __DMA_H__
 #define __DMA_H__
 
+
+#define USE_ASE
 #define DMA_CSR_IDX_DFH                0x0
 #define DMA_CSR_IDX_GUID_L             0x1
 #define DMA_CSR_IDX_GUID_H             0x2
@@ -21,9 +23,11 @@
 #define DMA_CSR_IDX_CONFIG_1           0xE
 #define DMA_CSR_IDX_CONFIG_2           0xF
 #define DMA_CSR_IDX_TYPE_VERSION       0x10
+#define MODE_SHIFT                     26
 
 #define CONTROL_BUSY_BIT               1
 #define GET_CONTROL_BUSY(reg) ((1u << CONTROL_BUSY_BIT)&reg)
+#define DMA_HOST_MASK		0x2000000000000
 
 
 

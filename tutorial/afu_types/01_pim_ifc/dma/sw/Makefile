@@ -24,7 +24,7 @@ $(TEST): $(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS) $(FPGA_LIBS) -lrt -pthread
 
 $(OBJDIR)/%.o: %.cpp | objdir
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=700 -c $< -o $@ -std=c11
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=700 -c $< -o $@ 
 
 clean:
 	rm -rf $(TEST) $(OBJDIR)

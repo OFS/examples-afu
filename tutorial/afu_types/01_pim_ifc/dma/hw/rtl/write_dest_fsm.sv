@@ -86,11 +86,11 @@ module write_dest_fsm #(
         dest_mem.wvalid        <= 1'b0;
         dest_mem.awvalid       <= 1'b0;
         dest_mem.aw            <= '0;
-        rd_fifo_if.rd_en       <= 1'b0;
+        dest_mem.w             <= '0;
      end else begin
         unique case (1'b1)
            next[IDLE_BIT]: begin
-              wr_dest_status.busy <= 1'b0;
+              wr_dest_status.busy    <= 1'b0;
               dest_mem.awvalid       <= 1'b0;
               dest_mem.wvalid        <= 1'b0;
            end 
@@ -104,18 +104,21 @@ module write_dest_fsm #(
                dest_mem.aw.size       <= 0;
            end
 
-           next[FIFO_EMPTY_BIT]: begin
-                rd_fifo_if.rd_en <= 1'b0;
-           end
+         //next[FIFO_EMPTY_BIT]: begin
+         //     rd_fifo_if.rd_en <= 1'b0;
+         //end
            
            next[RD_FIFO_WR_DEST_BIT]: begin
                 dest_mem.awvalid <= 1'b0;
-                dest_mem.w.data  <= rd_fifo_if.rd_data;
-                rd_fifo_if.rd_en <= 1'b1;
+                dest_mem.wvalid  <= rd_fifo_if.rd_en;
+                //dest_mem.w.data  <= rd_fifo_if.rd_data;
+                dest_mem.w.data  <= 512'h0123456789abcdef;
+                dest_mem.w.last  <= rd_fifo_if.rd_en; //FIXME: need last logic :(
            end
            
-           next[WAIT_FOR_WR_RSP_BIT]:
-              wr_fsm_done <= 1'b1;
+           next[WAIT_FOR_WR_RSP_BIT]: begin
+              wr_fsm_done      <= 1'b1;
+           end
 
            next[ERROR_BIT]: begin
               wr_dest_status.stopped_on_error <= 1'b1; 
@@ -125,7 +128,17 @@ module write_dest_fsm #(
      end
   end
 
-
+   always_comb begin
+      unique case (1'b1)
+         //state[IDLE_BIT]: 
+         //state[ADDR_SETUP_BIT]:
+         //state[FIFO_EMPTY_BIT]:
+         state[RD_FIFO_WR_DEST_BIT]: rd_fifo_if.rd_en = rd_fifo_if.not_empty;
+         //state[WAIT_FOR_WR_RSP_BIT]:
+         //state[ERROR_BIT]:
+         default: rd_fifo_if.rd_en = 1'b0;
+      endcase
+   end
 
 
 endmodule

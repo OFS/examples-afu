@@ -330,15 +330,14 @@ module csr_mgr #(
             $display("CSR_MGR: Read addr 0x%0h",
                      mmio64_reg.ar.addr);
         end else if  (mmio64_to_afu.rready & mmio64_to_afu.rvalid & reset_n) begin
-            $display("CSR_MGR: Read Data: 0x%0h",  mmio64_to_afu.r.data);
+            $display("\tCSR_MGR: Read Data: 0x%0h",  mmio64_to_afu.r.data);
         end 
 
         if (is_csr_write && reset_n) begin
-            //if (mmio64_to_afu.awvalid && mmio64_to_afu.awready) begin
-               $display("CSR_MGR: Write addr 0x%0h, %0s req comletion",
-                        { mmio64_reg.aw.addr[$bits(mmio64_reg.aw.addr)-1 : 1], 1'b0 },
-                        (mmio64_reg.aw.addr[0] ? "with" : "without"));
-            //end
+            $display("CSR_MGR: Write addr 0x%0h, %0s req comletion",
+                    { mmio64_reg.aw.addr[$bits(mmio64_reg.aw.addr)-1 : 1], 1'b0 },
+                    (mmio64_reg.aw.addr[0] ? "with" : "without"));
+            $display("\tCSR_MGR: Write Data: 0x%0h", mmio64_reg.w.data);
         end
     end
     // synthesis translate_on

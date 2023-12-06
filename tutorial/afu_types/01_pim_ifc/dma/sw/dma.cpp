@@ -9,14 +9,24 @@
 #include <poll.h>
 #include <pthread.h>
 
+//#include <iostream>
+//using namespace std;
+
 #include <opae/fpga.h>
 #include "dma.h"
 
+typedef enum dma_mode {
+   stand_by    = 0x0,
+   host_to_ddr = 0x1,
+   ddr_to_host = 0x2,
+   ddr_to_ddr  = 0x3
+} e_dma_mode;
+
 ///typedef struct
 ///{
-///	 volatile char *ptr;
-///	 uint64_t wsid;
-///	 uint64_t pa;
+///    volatile char *ptr;
+///    uint64_t wsid;
+///    uint64_t pa;
 ///}
 ///t_pinned_buffer;
 
@@ -27,22 +37,47 @@ static int s_error_count = 0;
 
 static uint64_t dma_dfh_offset = -256*1024;
 
+
+void mmio_read64(fpga_handle accel_handle, uint64_t addr, uint64_t *data, const char *reg_name){
+   fpgaReadMMIO64(accel_handle, 0, addr, data);
+   printf("Reading %s (Byte Offset=%08lx) = %08lx\n", reg_name, addr, *data);
+}
+
+void mmio_read64_silent(fpga_handle accel_handle, uint64_t addr, uint64_t *data) {
+   fpgaReadMMIO64(accel_handle, 0, addr, data);
+}
+
+
 // Shorter runs for ASE
 #define TOTAL_COPY_COMMANDS (s_is_ase_sim ? 1500L : 1000000L)
 #define DMA_BUFFER_SIZE (1024*1024)
 
 #define ON_ERR_GOTO(res, label, desc)  \
-	do {                                \
-		if ((res) != FPGA_OK) {          \
-			print_err((desc), (res));     \
-			s_error_count += 1;           \
-			goto label;                   \
-		}                                \
-	} while (0)
+   do {                                \
+      if ((res) != FPGA_OK) {          \
+         print_err((desc), (res));     \
+         s_error_count += 1;           \
+         goto label;                   \
+      }                                \
+   } while (0)
 
 void print_err(const char *s, fpga_result res) {
-	fprintf(stderr, "Error %s: %s\n", s, fpgaErrStr(res));
+   fprintf(stderr, "Error %s: %s\n", s, fpgaErrStr(res));
 }
+
+
+typedef struct __attribute__((__packed__))  {
+   //0x5
+   uint32_t src_address;
+   //0x6
+   uint32_t dest_address;
+   //0x7
+   uint32_t len;
+   //0x8
+   uint32_t control;
+} dma_descriptor_t;
+
+
 
 //
 // Allocate a buffer in I/O memory, shared with the FPGA.
@@ -50,8 +85,7 @@ void print_err(const char *s, fpga_result res) {
 static volatile void* alloc_buffer(fpga_handle accel_handle,
                                    ssize_t size,
                                    uint64_t *wsid,
-                                   uint64_t *io_addr)
-{
+                                   uint64_t *io_addr) {
     fpga_result r;
     volatile void* buf;
 
@@ -65,20 +99,44 @@ static volatile void* alloc_buffer(fpga_handle accel_handle,
     return buf;
 }
 
+void send_descriptor(fpga_handle accel_handle, uint64_t mmio_dst, /*uint64_t *host_src,*/ dma_descriptor_t desc) {
+   //mmio requires 8 byte alignment
+   //assert(len % 8 == 0);
+   assert(mmio_dst % 8 == 0);
+   
+   uint32_t dev_addr = mmio_dst;
+   //uint64_t *host_addr = host_src;
 
+    fpgaWriteMMIO64(accel_handle, 0, dev_addr, desc.src_address);
+    printf("Writing %08X to address %08X\n", desc.src_address,dev_addr);
+    dev_addr += 8;
+    fpgaWriteMMIO64(accel_handle, 0, dev_addr, desc.dest_address);
+    printf("Writing %08X to address %08X\n", desc.dest_address,dev_addr);
+    dev_addr += 8;
+    fpgaWriteMMIO64(accel_handle, 0, dev_addr, desc.len);
+    printf("Writing %08X to address %08X\n", desc.len,dev_addr);
+    dev_addr += 8;
+    fpgaWriteMMIO64(accel_handle, 0, dev_addr, desc.control);
+    printf("Writing %08X to address %08X\n", desc.control,dev_addr);
+ 
+   
+ //for(int i = 0; i < len/8; i++) {
+ //   fpgaWriteMMIO64(accel_handle, 0, dev_addr, *host_addr);
+ //   
+ //   printf("Writing %08X to address %08X\n", *host_addr,dev_addr/8);
+ //   host_addr += 1;
+ //   dev_addr += 8;
+ //}
+}
 
 //
 // Read a 64 bit CSR. When a pointer to CSR buffer is available, read directly.
 // Direct reads can be significantly faster.
 //
-static inline uint64_t readMMIO64(uint32_t idx)
-{
-    if (s_mmio_buf)
-    {
+static inline uint64_t readMMIO64(uint32_t idx) {
+    if (s_mmio_buf) {
         return s_mmio_buf[idx];
-    }
-    else
-    {
+    } else {
         fpga_result r;
         uint64_t v;
         r = fpgaReadMMIO64(s_accel_handle, 0, 8 * idx, &v);
@@ -91,14 +149,10 @@ static inline uint64_t readMMIO64(uint32_t idx)
 //
 // Write a 64 bit CSR. When a pointer to CSR buffer is available, write directly.
 //
-static inline void writeMMIO64(uint32_t idx, uint64_t v)
-{
-    if (s_mmio_buf)
-    {
+static inline void writeMMIO64(uint32_t idx, uint64_t v) {
+    if (s_mmio_buf) {
         s_mmio_buf[idx] = v;
-    }
-    else
-    {
+    } else {
         fpgaWriteMMIO64(s_accel_handle, 0, 8 * idx, v);
     }
 }
@@ -163,83 +217,126 @@ void print_csrs(){
 
 }
 
-void copy_to_dev_with_mmio(fpga_handle afc_handle, uint64_t *host_src, uint64_t dev_dest, int len) {
-	//mmio requires 8 byte alignment
-	assert(len % 8 == 0);
-	assert(dev_dest % 8 == 0);
-	
-	uint64_t dev_addr = dev_dest;
-	uint64_t *host_addr = host_src;
-	
-	uint64_t cur_mem_page = dev_addr & ~DMA_MEM_WINDOW_SPAN_MASK;
-	fpgaWriteMMIO64(afc_handle, 0, DMA_CSR_IDX_DESCRIPTOR_CONTROL, cur_mem_page);
-	
-	for(int i = 0; i < len/8; i++) {
-		uint64_t mem_page = dev_addr & ~DMA_MEM_WINDOW_SPAN_MASK;
-		if(mem_page != cur_mem_page) {
-			cur_mem_page = mem_page;
-			fpgaWriteMMIO64(afc_handle, 0, DMA_CSR_IDX_DESCRIPTOR_CONTROL, cur_mem_page);
-		}
-		fpgaWriteMMIO64(afc_handle, 0, MEM_WINDOW_MEM(dma_dfh_offset)+(dev_addr&DMA_MEM_WINDOW_SPAN_MASK), *host_addr);
-		
-		host_addr += 1;
-		dev_addr += 8;
-	}
-}
+   void copy_to_dev_with_mmio(fpga_handle accel_handle, uint64_t *host_src, uint64_t dev_dest, int len) {
+      //mmio requires 8 byte alignment
+      assert(len % 8 == 0);
+      assert(dev_dest % 8 == 0);
+      
+      uint64_t dev_addr = dev_dest;
+      
+      uint64_t *host_addr = host_src;
+      
+      uint64_t cur_mem_page = dev_addr & ~DMA_MEM_WINDOW_SPAN_MASK;
+      fpgaWriteMMIO64(accel_handle, 0, DMA_CSR_IDX_DESCRIPTOR_CONTROL, cur_mem_page);
+      
+      for(int i = 0; i < len/8; i++) {
+         uint64_t mem_page = dev_addr & ~DMA_MEM_WINDOW_SPAN_MASK;
+         if(mem_page != cur_mem_page) {
+            cur_mem_page = mem_page;
+            fpgaWriteMMIO64(accel_handle, 0, DMA_CSR_IDX_DESCRIPTOR_CONTROL, cur_mem_page);
+         }
+         // 
+         fpgaWriteMMIO64(accel_handle, 0, MEM_WINDOW_MEM(dma_dfh_offset)+(dev_addr&DMA_MEM_WINDOW_SPAN_MASK), *host_addr);
+         
+         host_addr += 1;
+         dev_addr += 8;
+      }
+   }
+
+   void copy_dev_to_dev_with_dma(fpga_handle accel_handle, uint64_t dev_src, uint64_t dev_dest, int len) {
+      fpga_result     res = FPGA_OK;
+      
+      //dma requires 64 byte alignment
+      assert(len % 64 == 0);
+      assert(dev_src % 64 == 0);
+      assert(dev_dest % 64 == 0);
+      
+      //only 32bit for now
+      const uint64_t MASK_FOR_32BIT_ADDR = 0xFFFFFFFF;
+      
+      dma_descriptor_t desc;
+      // Set the DMA Transaction type: host_to_ddr, ddr_to_host, ddr_to_ddr
+      e_dma_mode descriptor_mode = ddr_to_host;
+      
+      desc.src_address = dev_src & MASK_FOR_32BIT_ADDR;
+      desc.dest_address = dev_dest & MASK_FOR_32BIT_ADDR;  
+      desc.len = len;
+      desc.control = 0x80000000 | (descriptor_mode << MODE_SHIFT);
+       
+      const uint64_t DMA_DESC_BASE = 8*DMA_CSR_IDX_SRC_ADDR;
+      const uint64_t DMA_STATUS_BASE = 8*DMA_CSR_IDX_STATUS;
+      uint64_t mmio_data = 0;
+      
+      //int desc_size = sizeof(desc)/sizeof(desc.control);
+      int desc_size = sizeof(desc);
+      printf("Descriptor size = %d\n", desc_size);
+      printf("desc.src_address = %04X\n", desc.src_address);
+      printf("desc.dest_address = %04X\n", desc.dest_address);
+      printf("desc.len = %d\n", desc.len);
+      printf("desc.control = %04X\n", desc.control);
+
+      //send descriptor
+      send_descriptor(accel_handle, DMA_DESC_BASE, desc);
+      
+      
+      //TODO: the status register is only 32 bits.  Need to update this.
+      mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
+      // If the descriptor buffer is empty, then we are done
+      while((mmio_data&0xFFFFFFFF) !=0x2) {
+      #ifdef USE_ASE
+            sleep(1);
+            mmio_read64(accel_handle, DMA_STATUS_BASE, &mmio_data, "dma_csr_base");
+      #else
+            mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
+      #endif
+      }
+      
+   }
 
 
-int run_basic_ddr_dma_test(fpga_handle afc_handle) {
-	volatile uint64_t *dma_buf_ptr  = NULL;
-	uint64_t        dma_buf_wsid;
-	uint64_t dma_buf_iova;
-	
-	uint64_t data = 0;
-	fpga_result     res = FPGA_OK;
+int run_basic_ddr_dma_test(fpga_handle accel_handle) {
+   volatile uint64_t *dma_buf_ptr  = NULL;
+   uint64_t        dma_buf_wsid;
+   uint64_t dma_buf_iova;
+   
+   uint64_t data = 0;
+   fpga_result     res = FPGA_OK;
 
 #ifdef USE_ASE
-	const int TEST_BUFFER_SIZE = 256;
-	//const int TEST_BUFFER_SIZE = 256*128;
+   const int TEST_BUFFER_SIZE = 256;
 #else
-	const int TEST_BUFFER_SIZE = 1024*1024-256;
+   const int TEST_BUFFER_SIZE = 1024*1024-256;
 #endif
 
    uint64_t desc_control;
-	const int TEST_BUFFER_WORD_SIZE = TEST_BUFFER_SIZE/8;
-	char test_buffer[TEST_BUFFER_SIZE];
-	uint64_t *test_buffer_word_ptr = (uint64_t *)test_buffer;
-	char test_buffer_zero[TEST_BUFFER_SIZE];
-	const uint64_t DEST_PTR = 1024*1024;
+   const int TEST_BUFFER_WORD_SIZE = TEST_BUFFER_SIZE/8;
+   char test_buffer[TEST_BUFFER_SIZE];
+   uint64_t *test_buffer_word_ptr = (uint64_t *)test_buffer;
+   char test_buffer_zero[TEST_BUFFER_SIZE];
+   const uint64_t DEST_PTR = 1024*1024;
 
-	res = fpgaPrepareBuffer(afc_handle, DMA_BUFFER_SIZE,
-		(void **)&dma_buf_ptr, &dma_buf_wsid, 0);
-	ON_ERR_GOTO(res, release_buf, "allocating dma buffer");
-	memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
-	
-	res = fpgaGetIOAddress(afc_handle, dma_buf_wsid, &dma_buf_iova);
-	ON_ERR_GOTO(res, release_buf, "getting dma DMA_BUF_IOVA");
-	
-	printf("TEST_BUFFER_SIZE = %d\n", TEST_BUFFER_SIZE);
-	printf("DMA_BUFFER_SIZE = %d\n", DMA_BUFFER_SIZE);
-	
-	memset(test_buffer_zero, 0, TEST_BUFFER_SIZE);
-	
-	
-	for(int i = 0; i < TEST_BUFFER_WORD_SIZE; i++)
-		test_buffer_word_ptr[i] = i;
+   res = fpgaPrepareBuffer(accel_handle, DMA_BUFFER_SIZE,
+      (void **)&dma_buf_ptr, &dma_buf_wsid, 0);
+   ON_ERR_GOTO(res, release_buf, "allocating dma buffer");
+   memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
+   
+   res = fpgaGetIOAddress(accel_handle, dma_buf_wsid, &dma_buf_iova);
+   ON_ERR_GOTO(res, release_buf, "getting dma DMA_BUF_IOVA");
+   
+   printf("TEST_BUFFER_SIZE = %d\n", TEST_BUFFER_SIZE);
+   printf("DMA_BUFFER_SIZE = %d\n", DMA_BUFFER_SIZE);
+   
+   memset(test_buffer_zero, 0, TEST_BUFFER_SIZE);
+   
+   
+   for(int i = 0; i < TEST_BUFFER_WORD_SIZE; i++)
+      test_buffer_word_ptr[i] = i;
 
-
-    printf("About to write go bit");
-    writeMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL, 0x9400000F);
-    printf("Wrote go bit");
-    printf("entering dowhile loop");
-    do {
-       desc_control = readMMIO64(DMA_CSR_IDX_DESCRIPTOR_CONTROL);
-       printf("Waitin for busy done.  DMA_DESCRIPTOR_CONTROL: %016lX\n", desc_control);
-    } while (GET_CONTROL_BUSY(desc_control));
-
- 
+   printf("copy to device to dev with DMA\n");
+   copy_dev_to_dev_with_dma(accel_handle, 0, dma_buf_iova | DMA_HOST_MASK, TEST_BUFFER_SIZE);
+   
    release_buf:
-      res = fpgaReleaseBuffer(afc_handle, dma_buf_wsid); 
+      res = fpgaReleaseBuffer(accel_handle, dma_buf_wsid); 
 
 }
 
@@ -251,7 +348,6 @@ int dma(
     uint32_t max_reqs_in_flight)
 {
     fpga_result r;
-    pthread_t intr_thread = 0;
 
     s_accel_handle = accel_handle;
     s_is_ase_sim = is_ase_sim;
@@ -272,9 +368,9 @@ int dma(
 
     // TODO: Testing
     print_csrs();
-    writeMMIO64(DMA_CSR_IDX_SRC_ADDR, 0x00FF);
-    writeMMIO64(DMA_CSR_IDX_DEST_ADDR, 0xFF00);
-    writeMMIO64(DMA_CSR_IDX_LENGTH, 0x0010);
+  //writeMMIO64(DMA_CSR_IDX_SRC_ADDR, 0x00FF);
+  //writeMMIO64(DMA_CSR_IDX_DEST_ADDR, 0xFF00);
+  //writeMMIO64(DMA_CSR_IDX_LENGTH, 0x0010);
     run_basic_ddr_dma_test(s_accel_handle);
     printf("\n");
     print_csrs();
