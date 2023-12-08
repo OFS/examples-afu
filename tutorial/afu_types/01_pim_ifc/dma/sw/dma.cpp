@@ -247,7 +247,7 @@ void print_csrs(){
       fpga_result     res = FPGA_OK;
       
       //dma requires 64 byte alignment
-      assert(len % 64 == 0);
+      //assert(len % 64 == 0);
       assert(dev_src % 64 == 0);
       assert(dev_dest % 64 == 0);
       
@@ -282,7 +282,7 @@ void print_csrs(){
       //TODO: the status register is only 32 bits.  Need to update this.
       mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
       // If the descriptor buffer is empty, then we are done
-      while((mmio_data&0xFFFFFFFF) !=0x2) {
+      while((mmio_data&0x1) !=0x1) {
       #ifdef USE_ASE
             sleep(1);
             mmio_read64(accel_handle, DMA_STATUS_BASE, &mmio_data, "dma_csr_base");
@@ -290,7 +290,6 @@ void print_csrs(){
             mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
       #endif
       }
-      
    }
 
 
@@ -301,6 +300,7 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle) {
    
    uint64_t data = 0;
    fpga_result     res = FPGA_OK;
+	int num_errors = 0;
 
 #ifdef USE_ASE
    const int TEST_BUFFER_SIZE = 256;
@@ -314,6 +314,9 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle) {
    uint64_t *test_buffer_word_ptr = (uint64_t *)test_buffer;
    char test_buffer_zero[TEST_BUFFER_SIZE];
    const uint64_t DEST_PTR = 1024*1024;
+   const int awsize = 64; // 64 bytes per transfer - TODO: read the awsize from config register?
+   int dma_len = TEST_BUFFER_SIZE / awsize; //64Bytes per axi-mm beat = 4 beats
+   printf("dma_len = %d\n", dma_len);
 
    res = fpgaPrepareBuffer(accel_handle, DMA_BUFFER_SIZE,
       (void **)&dma_buf_ptr, &dma_buf_wsid, 0);
@@ -333,8 +336,24 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle) {
       test_buffer_word_ptr[i] = i;
 
    printf("copy to device to dev with DMA\n");
-   copy_dev_to_dev_with_dma(accel_handle, 0, dma_buf_iova | DMA_HOST_MASK, TEST_BUFFER_SIZE);
-   
+
+   // Basic DMA transfer, DDR to Host
+   printf ("Buffer before:\n");
+   for(int i = 0; i < TEST_BUFFER_WORD_SIZE; i++) {
+       printf("buffer[%d] = %016lx\n", i, dma_buf_ptr[i]);
+   }
+   copy_dev_to_dev_with_dma(accel_handle, 0, dma_buf_iova | DMA_HOST_MASK, dma_len);
+   printf ("Buffer after:\n");
+   for(int i = 0; i < TEST_BUFFER_WORD_SIZE; i++) {
+       printf("buffer[%d] = %016lx\n", i, dma_buf_ptr[i]);
+   }
+	if(memcmp((void *)dma_buf_ptr, (void *)test_buffer_word_ptr, TEST_BUFFER_SIZE) != 0) {
+		printf("ERROR: memcmp failed!\n");
+		num_errors++;
+	} else {
+       printf("Success!");
+   }
+	
    release_buf:
       res = fpgaReleaseBuffer(accel_handle, dma_buf_wsid); 
 

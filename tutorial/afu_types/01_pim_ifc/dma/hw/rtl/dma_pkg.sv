@@ -82,11 +82,11 @@ package dma_pkg;
     // Put CSR info in its own pkg?
     // Addresses/offsets:
     
-    localparam HOST_ADDR_W = 28;
+    localparam HOST_ADDR_W = 48;
     localparam DDR_ADDR_W = 32;
     localparam SRC_ADDR_W = (HOST_ADDR_W > DDR_ADDR_W) ? HOST_ADDR_W : DDR_ADDR_W; //choose the larger address width so we support both directions
     localparam DEST_ADDR_W = SRC_ADDR_W;
-    localparam LENGTH_W = 32;
+    localparam LENGTH_W = 8;
     localparam AXI_MM_DATA_W = 512;
     localparam DDR_DATA_W = AXI_MM_DATA_W;
     localparam HOST_DATA_W = AXI_MM_DATA_W;
@@ -98,6 +98,14 @@ package dma_pkg;
         SLVERR,
         DECERR
     } e_resp_enc;
+
+
+    typedef enum logic [1:0] {
+       BURST_FIXED,
+       BURST_INCR,
+       BURST_WRAP,
+       BURST_RESERVED
+    } e_axi_burst_type;
 
     typedef enum logic [1:0] {
        STAND_BY,

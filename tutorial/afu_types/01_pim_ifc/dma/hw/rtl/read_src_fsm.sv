@@ -49,7 +49,7 @@ module read_src_fsm #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: 
-            if (descriptor.descriptor_control.go == 1 & (descriptor_fifo_not_empty)) next = ADDR_SETUP; 
+            if (descriptor.descriptor_control.go & descriptor_fifo_not_empty) next = ADDR_SETUP; 
             else next = IDLE;
 
          state[ADDR_SETUP_BIT]:
@@ -74,22 +74,22 @@ module read_src_fsm #(
         src_mem.wvalid        <= 1'b0;
         src_mem.awvalid       <= 1'b0;
         src_mem.ar            <= '0;
-        descriptor_fifo_rdack <= 1'b0;
+        wr_fifo_if.wr_en      <= 1'b0;
      end else begin
         unique case (1'b1)
            next[IDLE_BIT]: begin
-              rd_src_status.busy <= 0;
-              src_mem.arvalid <= 1'b0;
-              descriptor_fifo_rdack <= 1'b0;
+              wr_fifo_if.wr_en      <= 1'b0;
+              rd_src_status.busy    <= 0;
+              src_mem.arvalid       <= 1'b0;
            end 
            
            next[ADDR_SETUP_BIT]: begin
                rd_src_status.busy <= 1;
                src_mem.arvalid  <= 1'b1;
                src_mem.ar.addr  <= descriptor.src_addr;
-               src_mem.ar.len   <= descriptor.length;
-               src_mem.ar.burst <= 0;
-               src_mem.ar.size  <= 0;
+               src_mem.ar.len   <= descriptor.length-1;
+               src_mem.ar.burst <= BURST_INCR;
+               src_mem.ar.size  <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
            end
            
            next[CP_RSP_TO_FIFO_BIT]: begin
@@ -101,11 +101,27 @@ module read_src_fsm #(
            next[WAIT_FOR_WR_RSP_BIT]: begin
               wr_fifo_if.wr_data <= src_mem.r.data;
               wr_fifo_if.wr_en   <= wr_fifo_if.not_full & src_mem.rvalid & src_mem.r.last;
-              if (wr_fsm_done) descriptor_fifo_rdack <= 1'b1;
            end
-          
        endcase
      end
   end
+
+
+   always_comb begin
+      descriptor_fifo_rdack = 1'b0;
+      unique case (1'b1)
+         state[IDLE_BIT]: begin end
+
+         state[ADDR_SETUP_BIT]: begin end
+
+         state[CP_RSP_TO_FIFO_BIT]: begin end
+
+         state[WAIT_FOR_WR_RSP_BIT]: begin 
+              if (wr_fsm_done) descriptor_fifo_rdack = 1'b1;
+         end
+
+      endcase
+   end
+
 
 endmodule

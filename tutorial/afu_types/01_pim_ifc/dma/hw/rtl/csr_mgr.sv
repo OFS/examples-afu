@@ -91,11 +91,11 @@ module csr_mgr #(
     assign dma_csr_map.status.stopped_on_error              ='b0;   // TODO:
     assign dma_csr_map.status.resetting                     ='b0;   // TODO:
     assign dma_csr_map.status.stopped                       ='b0;   // TODO:
-    assign dma_csr_map.status.response_fifo_full          ='b0;   // TODO:
-    assign dma_csr_map.status.response_fifo_empty         ='b0;   // TODO:
-    assign dma_csr_map.status.descriptor_fifo_full        = dma_csr_status.descriptor_fifo_full;
-    assign dma_csr_map.status.descriptor_fifo_empty       = dma_csr_status.descriptor_fifo_empty;
-    assign dma_csr_map.status.busy                          ='b0;   // TODO:
+    assign dma_csr_map.status.response_fifo_full            ='b0;   // TODO:
+    assign dma_csr_map.status.response_fifo_empty           ='b0;   // TODO:
+    assign dma_csr_map.status.descriptor_fifo_full          = dma_csr_status.descriptor_fifo_full;
+    assign dma_csr_map.status.descriptor_fifo_empty         = dma_csr_status.descriptor_fifo_empty;
+    assign dma_csr_map.status.busy                          = dma_csr_status.busy;
 
     assign dma_csr_map.config1.max_byte                 = 'b0;  // TODO:
     assign dma_csr_map.config1.max_burst_count          = 'b0;  // TODO:
