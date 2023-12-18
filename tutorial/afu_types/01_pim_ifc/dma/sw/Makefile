@@ -9,7 +9,7 @@ CFLAGS += -I./$(OBJDIR)
 CPPFLAGS += -I./$(OBJDIR)
 
 # Files and folders
-SRCS = main.cpp dma.cpp
+SRCS = main.cpp dma.cpp dma_util.cpp
 OBJS = $(addprefix $(OBJDIR)/,$(patsubst %.cpp,%.o,$(SRCS)))
 
 all: $(TEST)

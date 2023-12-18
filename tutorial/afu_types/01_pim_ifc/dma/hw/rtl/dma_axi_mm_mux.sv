@@ -15,34 +15,34 @@ module dma_axi_mm_mux #(
    `define AXI_MM_ASSIGN(dma_mem_src, pim_mem_src, dma_mem_dest, pim_mem_dest) \
       ``pim_mem_src``.arvalid= ``dma_mem_src``.arvalid; \
       ``dma_mem_src``.arready= ``pim_mem_src``.arready; \
-      ``pim_mem_src``.ar     = ``dma_mem_src``.ar; \
+      ``pim_mem_src``.ar     = {'b0, ``dma_mem_src``.ar}; \
       ``pim_mem_src``.rready = ``dma_mem_src``.rready; \
       ``dma_mem_src``.rvalid = ``pim_mem_src``.rvalid; \
-      ``dma_mem_src``.r      = ``pim_mem_src``.r; \
+      ``dma_mem_src``.r      = {'b0, ``pim_mem_src``.r}; \
       ``dma_mem_src``.awready= ``pim_mem_src``.awready; \
       ``pim_mem_src``.awvalid= ``dma_mem_src``.awvalid; \
-      ``pim_mem_src``.aw     = ``dma_mem_src``.aw; \
+      ``pim_mem_src``.aw     = {'b0, ``dma_mem_src``.aw}; \
       ``dma_mem_src``.wready = ``pim_mem_src``.wready; \
       ``pim_mem_src``.wvalid = ``dma_mem_src``.wvalid; \
-      ``pim_mem_src``.w      = ``dma_mem_src``.w; \
+      ``pim_mem_src``.w      = {'b0, ``dma_mem_src``.w}; \
       ``pim_mem_src``.bready = ``dma_mem_src``.bready; \
       ``dma_mem_src``.bvalid = ``pim_mem_src``.bvalid; \
-      ``dma_mem_src``.b      = ``pim_mem_src``.b; \
+      ``dma_mem_src``.b      = {'b0, ``pim_mem_src``.b}; \
       ``dma_mem_dest``.arready = ``pim_mem_dest``.arready; \
       ``pim_mem_dest``.arvalid = ``dma_mem_dest``.arvalid; \
-      ``pim_mem_dest``.ar      = ``dma_mem_dest``.ar; \
+      ``pim_mem_dest``.ar      = {'b0, ``dma_mem_dest``.ar}; \
       ``pim_mem_dest``.rready  = ``dma_mem_dest``.rready; \
       ``dma_mem_dest``.rvalid  = ``pim_mem_dest``.rvalid; \
-      ``dma_mem_dest``.r       = ``pim_mem_dest``.r; \
+      ``dma_mem_dest``.r       = {'b0, ``pim_mem_dest``.r}; \
       ``dma_mem_dest``.awready = ``pim_mem_dest``.awready; \
       ``pim_mem_dest``.awvalid = ``dma_mem_dest``.awvalid; \
-      ``pim_mem_dest``.aw      = ``dma_mem_dest``.aw; \
+      ``pim_mem_dest``.aw      = {'b0, ``dma_mem_dest``.aw}; \
       ``dma_mem_dest``.wready  = ``pim_mem_dest``.wready; \
       ``pim_mem_dest``.wvalid  = ``dma_mem_dest``.wvalid; \
-      ``pim_mem_dest``.w       = ``dma_mem_dest``.w; \
+      ``pim_mem_dest``.w       = {'b0, ``dma_mem_dest``.w}; \
       ``pim_mem_dest``.bready  = ``dma_mem_dest``.bready; \
       ``dma_mem_dest``.bvalid  = ``pim_mem_dest``.bvalid; \
-      ``dma_mem_dest``.b       = ``pim_mem_dest``.b; 
+      ``dma_mem_dest``.b       = {'b0, ``pim_mem_dest``.b}; 
   
   always_comb begin
      case (mode) 

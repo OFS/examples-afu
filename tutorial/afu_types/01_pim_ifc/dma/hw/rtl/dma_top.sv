@@ -134,20 +134,6 @@ module dma_top #(
         `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
      ) src_mem();
 
-    // > RP For testing
-//   genvar b;
-//   generate
-//       for (b = 1; b < NUM_LOCAL_MEM_BANKS; b = b + 1)
-//       begin : mb
-//         assign ddr_mem[b].awvalid = 'b0;
-//         assign ddr_mem[b].wvalid = 'b0;
-//         assign ddr_mem[b].arvalid = 'b0;
-//         assign ddr_mem[b].bready = 'b1;
-//         assign ddr_mem[b].rready = 'b1;
-//       end
-//   endgenerate
-//   //// < RP For testing
-
     ofs_plat_axi_mem_if #(
       // Copy the configuration from ddr_mem
       `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
