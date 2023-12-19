@@ -35,7 +35,7 @@ static uint64_t dma_dfh_offset = -256*1024;
 #define TOTAL_COPY_COMMANDS (s_is_ase_sim ? 1500L : 1000000L)
 #define DMA_BUFFER_SIZE (1024*1024)
 
-#define TEST_BUFFER_SIZE_ASE 8 * 1024
+#define TEST_BUFFER_SIZE_ASE 16 * 1024
 #define TEST_BUFFER_SIZE_HW 1024*1024-256
 
 #define ON_ERR_GOTO(res, label, desc)  \
@@ -343,8 +343,10 @@ int run_round_trip_transfer(fpga_handle accel_handle) {
 
    printf ("\nBuffer after transfer:\n");
    for(int i = 0; i < test_buffer_word_size; i++) {
-      //printf("buffer[%d] = %016lx\n", i, dma_buf_ptr[i]);
+      if (i%8 == 0) printf("\nbuffer[%d] = ", i);
+      printf("%016lx",dma_buf_ptr[i]);
    }
+   printf("\n");
 
    // Check expected result
    if(memcmp((void *)dma_buf_ptr, (void *)expected_result, test_buffer_size) != 0) {

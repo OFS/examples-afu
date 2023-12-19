@@ -19,6 +19,7 @@ module read_src_fsm #(
 );
 
    `define NUM_STATES 4
+   localparam AXI_SIZE_W = $bits(src_mem.ar.size);
 
    enum {
       IDLE_BIT,
@@ -34,9 +35,21 @@ module read_src_fsm #(
       WAIT_FOR_WR_RSP     = `NUM_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
       XXX = 'x
    } state, next;
+
+   function automatic logic [AXI_SIZE_W-1:0] get_burst;
+      input [1:0] burst_mode;
+      begin
+         case (burst_mode)
+            STAND_BY:    return XXX;
+            HOST_TO_DDR: return BURST_WRAP;
+            DDR_TO_HOST: return BURST_INCR;
+            DDR_TO_DDR:  return BURST_INCR;
+            default:     return XXX;
+         endcase
+      end
+    endfunction
    
-   //assign src_mem.rready = state[CP_RSP_TO_FIFO_BIT] ? wr_fifo_if.not_full : 0;
-   assign src_mem.rready = 1'b1;
+   //assign src_mem.rready = 1'b1;
    assign src_mem.bready = 1'b0;
    
 
@@ -88,19 +101,19 @@ module read_src_fsm #(
                src_mem.arvalid  <= 1'b1;
                src_mem.ar.addr  <= descriptor.src_addr;
                src_mem.ar.len   <= descriptor.length-1;
-               src_mem.ar.burst <= BURST_INCR;
+               src_mem.ar.burst <= get_burst(descriptor.descriptor_control.mode);;
                src_mem.ar.size  <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
            end
            
            next[CP_RSP_TO_FIFO_BIT]: begin
                src_mem.arvalid    <= 1'b0;
                wr_fifo_if.wr_data <= src_mem.r.data;
-               wr_fifo_if.wr_en   <= wr_fifo_if.not_full & src_mem.rvalid;
+               wr_fifo_if.wr_en   <= !wr_fifo_if.almost_full & src_mem.rvalid;
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin
               wr_fifo_if.wr_data <= src_mem.r.data;
-              wr_fifo_if.wr_en   <= wr_fifo_if.not_full & src_mem.rvalid & src_mem.r.last;
+              wr_fifo_if.wr_en   <= !wr_fifo_if.almost_full & src_mem.rvalid & src_mem.r.last;
            end
        endcase
      end
@@ -109,12 +122,16 @@ module read_src_fsm #(
 
    always_comb begin
       descriptor_fifo_rdack = 1'b0;
+      src_mem.rready = 1'b0;
       unique case (1'b1)
          state[IDLE_BIT]: begin end
 
          state[ADDR_SETUP_BIT]: begin end
 
-         state[CP_RSP_TO_FIFO_BIT]: begin end
+         state[CP_RSP_TO_FIFO_BIT]: begin 
+         
+            src_mem.rready = !wr_fifo_if.almost_full;
+         end
 
          state[WAIT_FOR_WR_RSP_BIT]: begin 
               if (wr_fsm_done) descriptor_fifo_rdack = 1'b1;
