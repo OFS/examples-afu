@@ -114,6 +114,7 @@ module write_dest_fsm #(
         dest_mem.awvalid    <= 1'b0;
         dest_mem.aw         <= '0;
         dest_mem.w          <= '0;
+        dest_mem.w.strb     <= '1;
      end else begin
         unique case (1'b1)
            next[IDLE_BIT]: begin
@@ -138,8 +139,8 @@ module write_dest_fsm #(
                 tlast_counter    <= rd_fifo_if.rd_en ? tlast_counter_next : tlast_counter;
                 dest_mem.awvalid <= 1'b0;
                 dest_mem.wvalid  <= rd_fifo_if.rd_en;
-                //dest_mem.w.data  <= rd_fifo_if.rd_data;
-                dest_mem.w.data  <= dest_mem.w.data + rd_fifo_if.rd_en;
+                dest_mem.w.data  <= rd_fifo_if.rd_data;
+               //  dest_mem.w.data  <= dest_mem.w.data + rd_fifo_if.rd_en;
                 dest_mem.w.last  <= tlast_counter >= ((descriptor.length-1)*get_size(axi_size)); 
            end
            

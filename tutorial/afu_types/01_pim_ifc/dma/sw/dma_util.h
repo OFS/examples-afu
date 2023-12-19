@@ -1,3 +1,5 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
 
 #ifndef __DMA_UTIL_H__
 #define __DMA_UTIL__H__
@@ -29,6 +31,12 @@ void send_descriptor( fpga_handle accel_handle,
                       uint64_t mmio_dst, 
                       dma_descriptor_t desc);
 
+void dma_transfer(fpga_handle accel_handle, 
+                  e_dma_mode mode,
+                  uint64_t src, 
+                  uint64_t dest, 
+                  int len);
+
 volatile void* alloc_io_shared_buffer(fpga_handle accel_handle,
                                    ssize_t size,
                                    uint64_t *wsid,
@@ -36,5 +44,6 @@ volatile void* alloc_io_shared_buffer(fpga_handle accel_handle,
 
 fpga_result alloc_fpga_mem_buffer(size_t size, 
                                   uint64_t *addr);
+
 
 #endif // __DMA_UTIL__H__

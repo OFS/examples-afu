@@ -1,3 +1,6 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
+
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -89,4 +92,47 @@ fpga_result alloc_fpga_mem_buffer(size_t size, uint64_t *addr) {
   return FPGA_OK;
 }
 
+void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t src, uint64_t dest, int len) {
+   fpga_result     res = FPGA_OK;
+   
+   //dma requires 64 byte alignment
+   //assert(len % 64 == 0);
+   assert(src % 64 == 0);
+   assert(dest % 64 == 0);
+   
+   //only 32bit for now //TODO: remove mask when >32 addr space accepted. Assume address being passed in is in boundary range
+   const uint64_t MASK_FOR_32BIT_ADDR = 0xFFFFFFFF;
+   
+   dma_descriptor_t desc;
+   desc.src_address = src & MASK_FOR_32BIT_ADDR;
+   desc.dest_address = dest & MASK_FOR_32BIT_ADDR;  
+   desc.len = len;
+   desc.control = 0x80000000 | (mode << MODE_SHIFT);
+      
+   const uint64_t DMA_DESC_BASE = 8*DMA_CSR_IDX_SRC_ADDR;
+   const uint64_t DMA_STATUS_BASE = 8*DMA_CSR_IDX_STATUS;
+   uint64_t mmio_data = 0;
+   
+   //int desc_size = sizeof(desc)/sizeof(desc.control);
+   int desc_size = sizeof(desc);
+   printf("Descriptor size   = %d\n", desc_size);
+   printf("desc.src_address  = %04X\n", desc.src_address);
+   printf("desc.dest_address = %04X\n", desc.dest_address);
+   printf("desc.len          = %d\n", desc.len);
+   printf("desc.control      = %04X\n", desc.control);
 
+   //send descriptor
+   send_descriptor(accel_handle, DMA_DESC_BASE, desc);
+   
+   //TODO: the status register is only 32 bits.  Need to update this.
+   mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
+   // If the descriptor buffer is empty, then we are done
+   while((mmio_data&0x1) == 0x1) {
+   #ifdef USE_ASE
+         sleep(1);
+         mmio_read64(accel_handle, DMA_STATUS_BASE, &mmio_data, "dma_csr_base");
+   #else
+         mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
+   #endif
+   } 
+}

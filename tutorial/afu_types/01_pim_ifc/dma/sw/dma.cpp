@@ -35,7 +35,7 @@ static uint64_t dma_dfh_offset = -256*1024;
 #define TOTAL_COPY_COMMANDS (s_is_ase_sim ? 1500L : 1000000L)
 #define DMA_BUFFER_SIZE (1024*1024)
 
-#define TEST_BUFFER_SIZE_ASE 256
+#define TEST_BUFFER_SIZE_ASE 8 * 1024
 #define TEST_BUFFER_SIZE_HW 1024*1024-256
 
 #define ON_ERR_GOTO(res, label, desc)  \
@@ -285,51 +285,6 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle) {
 
 }
 
-void start_dma(fpga_handle accel_handle, e_dma_mode mode, uint64_t src, uint64_t dest, int len) {
-   fpga_result     res = FPGA_OK;
-   
-   //dma requires 64 byte alignment
-   //assert(len % 64 == 0);
-   assert(src % 64 == 0);
-   assert(dest % 64 == 0);
-   
-   //only 32bit for now
-   const uint64_t MASK_FOR_32BIT_ADDR = 0xFFFFFFFF;
-   
-   dma_descriptor_t desc;
-   desc.src_address = src & MASK_FOR_32BIT_ADDR;
-   desc.dest_address = dest & MASK_FOR_32BIT_ADDR;  
-   desc.len = len;
-   desc.control = 0x80000000 | (mode << MODE_SHIFT);
-      
-   const uint64_t DMA_DESC_BASE = 8*DMA_CSR_IDX_SRC_ADDR;
-   const uint64_t DMA_STATUS_BASE = 8*DMA_CSR_IDX_STATUS;
-   uint64_t mmio_data = 0;
-   
-   //int desc_size = sizeof(desc)/sizeof(desc.control);
-   int desc_size = sizeof(desc);
-   printf("Descriptor size   = %d\n", desc_size);
-   printf("desc.src_address  = %04X\n", desc.src_address);
-   printf("desc.dest_address = %04X\n", desc.dest_address);
-   printf("desc.len          = %d\n", desc.len);
-   printf("desc.control      = %04X\n", desc.control);
-
-   //send descriptor
-   send_descriptor(accel_handle, DMA_DESC_BASE, desc);
-   
-   //TODO: the status register is only 32 bits.  Need to update this.
-   mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
-   // If the descriptor buffer is empty, then we are done
-   while((mmio_data&0x1) !=0x1) {
-   #ifdef USE_ASE
-         sleep(1);
-         mmio_read64(accel_handle, DMA_STATUS_BASE, &mmio_data, "dma_csr_base");
-   #else
-         mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
-   #endif
-   } 
-}
-
 int run_round_trip_transfer(fpga_handle accel_handle) {
    // Shared buffer in host memory 
    volatile uint64_t *dma_buf_ptr  = NULL;
@@ -352,6 +307,9 @@ int run_round_trip_transfer(fpga_handle accel_handle) {
    uint32_t      dma_len = ((test_buffer_size - 1) / awsize) + 1; // Ceiling of test_buffer_size / awsize 
    printf("dma_len = %d\n", dma_len);
 
+   // Declare expected result buffer
+   uint64_t *expected_result = (uint64_t *)malloc(DMA_BUFFER_SIZE);
+
    // Initialize shared buffer
    res = fpgaPrepareBuffer(accel_handle, DMA_BUFFER_SIZE, 
                            (void **)&dma_buf_ptr, &dma_buf_wsid, 0);
@@ -365,7 +323,9 @@ int run_round_trip_transfer(fpga_handle accel_handle) {
    
    printf ("\nBuffer before transfer:\n");
    for(int i = 0; i < test_buffer_word_size; i++) {
-       printf("buffer[%d] = %016lx\n", i, dma_buf_ptr[i]);
+      dma_buf_ptr[i] = i;
+      expected_result[i] = i;
+      //printf("buffer[%d] = %016lx\n", i, dma_buf_ptr[i]);
    }
 
    uint64_t fpga_mem_addr;
@@ -374,11 +334,25 @@ int run_round_trip_transfer(fpga_handle accel_handle) {
 
    printf("FPGA mem addr: %lu\n", (uint64_t) fpga_mem_addr);
       
-   // Start transfer
+   // Transfer dma_buf to fpga memory
+   dma_transfer(accel_handle, host_to_ddr, dma_buf_iova | DMA_HOST_MASK, fpga_mem_addr, dma_len);
+   // Clear dma_buf
+   memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
+   // Read data back from fpga memory 
+   dma_transfer(accel_handle, ddr_to_host, fpga_mem_addr, dma_buf_iova | DMA_HOST_MASK, dma_len); 
 
-   start_dma(accel_handle, host_to_ddr, dma_buf_iova | DMA_HOST_MASK, fpga_mem_addr, dma_len);
+   printf ("\nBuffer after transfer:\n");
+   for(int i = 0; i < test_buffer_word_size; i++) {
+      //printf("buffer[%d] = %016lx\n", i, dma_buf_ptr[i]);
+   }
 
-   // End Transfer 
+   // Check expected result
+   if(memcmp((void *)dma_buf_ptr, (void *)expected_result, test_buffer_size) != 0) {
+		printf("ERROR: memcmp failed!\n");
+		num_errors++;
+	} else {
+       printf("Success!");
+   }
 
    release_buf:
       res = fpgaReleaseBuffer(accel_handle, dma_buf_wsid); 
@@ -413,11 +387,10 @@ int dma(
         s_mmio_buf = tmp_ptr;
     }
 
-    // TODO: Testing
-    print_csrs();
-    run_basic_ddr_dma_test(s_accel_handle);
-    printf("\n");
-    print_csrs();
+    //print_csrs();
+    //run_basic_ddr_dma_test(s_accel_handle);
+    //printf("\n");
+    //print_csrs();
 
     run_round_trip_transfer(s_accel_handle);
     
