@@ -61,7 +61,10 @@ module dma_top #(
        dma_descriptor            = rd_desc_fifo_if.rd_data;
        rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
        descriptor_fifo_not_empty = rd_desc_fifo_if.not_empty;
-
+       dma_csr_status                              = 0;
+       dma_csr_status.rsvd_63_28                   = 0;
+       dma_csr_status.wr_dest_perf_cntr            = wr_dest_status.wr_dest_perf_cntr;
+       dma_csr_status.rd_src_perf_cntr             = rd_src_status.rd_src_perf_cntr;
        dma_csr_status.descriptor_fifo_count        = 0;
        dma_csr_status.rd_state                     = rd_src_status.rd_state;
        dma_csr_status.wr_state                     = wr_dest_status.wr_state;
@@ -71,7 +74,7 @@ module dma_top #(
        dma_csr_status.wr_rsp_err                   = '0;
        dma_csr_status.irq                          = '0;
        dma_csr_status.stopped_on_early_termination = '0;
-       dma_csr_status.stopped_on_error             = '0; 
+       dma_csr_status.stopped_on_error             = wr_dest_status.stopped_on_error | rd_src_status.stopped_on_error; 
        dma_csr_status.resetting                    = '0; 
        dma_csr_status.stopped                      = '0; 
        dma_csr_status.response_fifo_full           = 1'b0;

@@ -79,6 +79,33 @@ static inline void writeMMIO64(uint32_t idx, uint64_t v) {
     }
 }
 
+void print_bandwidth() {
+    uint64_t rd_src_clk_cnt;
+    uint64_t rd_src_valid_cnt;
+    uint64_t rd_src_bw;
+    uint64_t wr_dest_clk_cnt;
+    uint64_t wr_dest_valid_cnt;
+    uint64_t wr_dest_bw;
+    uint64_t rd_src_perf_cntr = readMMIO64(DMA_CSR_IDX_RD_SRC_PERF_CNTR);
+    printf("  RD_SRC_PERF_CNTR:       %016lX\n", rd_src_perf_cntr);
+    rd_src_valid_cnt = rd_src_perf_cntr & 0xFFFFFFFF;
+    rd_src_clk_cnt = rd_src_perf_cntr>>32;
+    rd_src_clk_cnt &= 0xFFFFFFFF;
+    //rd_src_bw = (rd_src_valid_cnt * 400000000 * 512) / rd_src_clk_cnt;
+    //printf(" ReadSource BW = %ld\n", rd_src_bw);
+    printf("RdSrcClkCnt = %ld\n", rd_src_clk_cnt);
+    printf("RdSrcValidCnt = %ld\n", rd_src_valid_cnt);
+
+    uint64_t wr_dest_perf_cntr = readMMIO64(DMA_CSR_IDX_WR_DEST_PERF_CNTR);
+    printf("  WR_DEST_PERF_CNTR:       %016lX\n", wr_dest_perf_cntr);
+    wr_dest_valid_cnt = wr_dest_perf_cntr & 0xFFFFFFFF;
+    wr_dest_clk_cnt = wr_dest_perf_cntr>>32;
+    wr_dest_clk_cnt &= 0xFFFFFFFF;
+    //wr_dest_bw = (wr_dest_valid_cnt * 400000000 * 512) / wr_dest_clk_cnt;
+    printf("WriteDestClkCnt = %ld\n", wr_dest_clk_cnt);
+    printf("WriteDestValidCnt = %ld\n", wr_dest_valid_cnt);
+}
+
 
 void print_csrs(){
     printf("AFU properties:\n");
@@ -133,6 +160,12 @@ void print_csrs(){
 
     uint64_t info = readMMIO64(DMA_CSR_IDX_TYPE_VERSION);
     printf("  DMA_TYPE_VERSION:       %016lX\n", info);
+
+    uint64_t rd_src_perf_cntr = readMMIO64(DMA_CSR_IDX_RD_SRC_PERF_CNTR);
+    printf("  RD_SRC_PERF_CNTR:       %016lX\n", rd_src_perf_cntr);
+
+    uint64_t wr_dest_perf_cntr = readMMIO64(DMA_CSR_IDX_WR_DEST_PERF_CNTR);
+    printf("  WR_DEST_PERF_CNTR:       %016lX\n", wr_dest_perf_cntr);
 
     printf("\n");
 }
@@ -336,6 +369,7 @@ int run_round_trip_transfer(fpga_handle accel_handle) {
       
    // Transfer dma_buf to fpga memory
    dma_transfer(accel_handle, host_to_ddr, dma_buf_iova | DMA_HOST_MASK, fpga_mem_addr, dma_len);
+   print_bandwidth();
    // Clear dma_buf
    memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
    // Read data back from fpga memory 
@@ -347,6 +381,7 @@ int run_round_trip_transfer(fpga_handle accel_handle) {
       printf("%016lx",dma_buf_ptr[i]);
    }
    printf("\n");
+   print_bandwidth();
 
    // Check expected result
    if(memcmp((void *)dma_buf_ptr, (void *)expected_result, test_buffer_size) != 0) {

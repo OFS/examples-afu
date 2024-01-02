@@ -76,13 +76,18 @@ module write_dest_fsm #(
    logic [TLAST_COUNTER_W-1:0] tlast_counter;
    logic [TLAST_COUNTER_W-1:0] tlast_counter_upper;
    logic [TLAST_COUNTER_W-1:0] tlast_counter_next;
+   logic [dma_pkg::PERF_CNTR_W-1:0] wr_dest_clk_cnt;
+   logic [dma_pkg::PERF_CNTR_W-1:0] wr_dest_valid_cnt;
 
+   assign wr_dest_status.wr_dest_perf_cntr.wr_dest_clk_cnt = wr_dest_clk_cnt;
+   assign wr_dest_status.wr_dest_perf_cntr.wr_dest_valid_cnt = wr_dest_valid_cnt;
    assign axi_size   = dest_mem.ADDR_BYTE_IDX_WIDTH;
    assign wr_resp    = dest_mem.bvalid & dest_mem.bready;
    assign wr_resp_ok = wr_resp & (dest_mem.b.resp==dma_pkg::OKAY);
    assign tlast_counter_next = tlast_counter + get_size(axi_size);
    assign dest_mem.rready = 1'b1;
    assign tlast_counter_upper = {'0, tlast_counter[TLAST_COUNTER_W-1:dest_mem.ADDR_BYTE_IDX_WIDTH]};
+   assign wr_dest_status.wr_state = state; 
    
    always_ff @(posedge clk) begin
       if (!reset_n) state <= IDLE;
@@ -116,7 +121,6 @@ module write_dest_fsm #(
          state[ERROR_BIT]:
             if (csr_control.reset_dispatcher) next = IDLE;
             else next = ERROR;
-
       endcase
    end
 
@@ -124,6 +128,8 @@ module write_dest_fsm #(
      if (!reset_n) begin
         tlast_counter       <= '0;
         wr_dest_status.busy <= 1'b0;
+        wr_dest_clk_cnt     <= '0;
+        wr_dest_valid_cnt   <= '0;
         dest_mem.arvalid    <= 1'b0;
         dest_mem.awvalid    <= 1'b0;
         dest_mem.aw         <= '0;
@@ -136,6 +142,8 @@ module write_dest_fsm #(
            end 
            
            next[ADDR_SETUP_BIT]: begin
+               wr_dest_clk_cnt     <= '0;
+               wr_dest_valid_cnt   <= '0;
                wr_dest_status.busy <= 1'b1;
                dest_mem.awvalid    <= 1'b1;
                dest_mem.aw.addr    <= descriptor.dest_addr;
@@ -147,48 +155,50 @@ module write_dest_fsm #(
            next[FIFO_EMPTY_BIT]: begin end
            
            next[RD_FIFO_WR_DEST_BIT]: begin
-                tlast_counter    <= rd_fifo_if.rd_en ? tlast_counter_next : tlast_counter;
-                dest_mem.awvalid <= 1'b0;
-                //dest_mem.w.last  <= tlast_counter >= ((descriptor.length-1)*get_size(axi_size)); 
+                tlast_counter     <= rd_fifo_if.rd_en ? tlast_counter_next : tlast_counter;
+                wr_dest_clk_cnt   <= wr_dest_clk_cnt + 1;
+                wr_dest_valid_cnt <= wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);
+                dest_mem.awvalid  <= 1'b0;
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin
               tlast_counter    <= tlast_counter;
            end
 
-           next[ERROR_BIT]: begin
-              wr_dest_status.stopped_on_error <= 1'b1; 
-           end
+           next[ERROR_BIT]: begin end
           
        endcase
      end
   end
 
    always_comb begin
-      rd_fifo_if.rd_en = 1'b0;
-      dest_mem.bready  = 1'b0;
-      wr_fsm_done      = 1'b0;
-      
-      dest_mem.w.strb = '1;
-      dest_mem.wvalid = 1'b0;
-      dest_mem.w.last = 1'b0;
-      dest_mem.w.data = '0;
-      dest_mem.w.user = '0;
+      rd_fifo_if.rd_en                = 1'b0;
+      dest_mem.bready                 = 1'b0;
+      wr_fsm_done                     = 1'b0;
+      wr_dest_status.stopped_on_error = 1'b0;
+      dest_mem.w.strb                 = '1;
+      dest_mem.wvalid                 = 1'b0;
+      dest_mem.w.last                 = 1'b0;
+      dest_mem.w.data                 = '0;
+      dest_mem.w.user                 = '0;
       unique case (1'b1)
          state[IDLE_BIT]: begin end
          state[ADDR_SETUP_BIT]:begin end
          state[FIFO_EMPTY_BIT]:begin end
          state[RD_FIFO_WR_DEST_BIT]: begin 
             rd_fifo_if.rd_en = rd_fifo_if.not_empty & dest_mem.wready;
-            dest_mem.wvalid  = rd_fifo_if.rd_en;
+            dest_mem.wvalid  = rd_fifo_if.not_empty & dest_mem.wready;
             dest_mem.w.data  = rd_fifo_if.rd_data;
+          //dest_mem.w.last  = tlast_counter >= ((descriptor.length-1)*get_size(axi_size)); 
             dest_mem.w.last  = tlast_counter_upper == (descriptor.length-1); 
          end
          state[WAIT_FOR_WR_RSP_BIT]: begin 
             dest_mem.bready = 1'b1;
             wr_fsm_done     = wr_resp_ok;
          end
-         state[ERROR_BIT]:begin end
+         state[ERROR_BIT]:begin 
+            wr_dest_status.stopped_on_error = 1'b1;
+         end
       endcase
    end
 

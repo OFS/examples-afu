@@ -4,14 +4,15 @@
 `include "ofs_plat_if.vh"
 
 package dma_pkg;
-  `define NUM_RD_STATES 4
-  `define NUM_WR_STATES 4
+  `define NUM_RD_STATES 6
+  `define NUM_WR_STATES 5
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   //
   // Parameters
   //
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
+  localparam PERF_CNTR_W = 32;
   localparam DMA_DESCRIPTOR_FIFO_DEPTH = 16;
   localparam DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED = 
     (DMA_DESCRIPTOR_FIFO_DEPTH == 8)    ? 0 :
@@ -52,6 +53,8 @@ package dma_pkg;
     localparam DMA_CONFIG_1           = 5'hE;   // R
     localparam DMA_CONFIG_2           = 5'hF;   // R
     localparam DMA_TYPE_VERSION       = 5'h10;  // R
+    localparam DMA_RD_SRC_PERF_CNTR   = 5'h11;  // R
+    localparam DMA_WR_DEST_PERF_CNTR  = 5'h12;  // R
 
     localparam DMA_CSR_REG_W  = 64;
     localparam DMA_CSR_USED_W = 32;
@@ -144,25 +147,37 @@ package dma_pkg;
     // Register Definitions
     //
     // =========================================================================
+    typedef struct packed {
+      logic [PERF_CNTR_W-1:0]  wr_dest_clk_cnt;
+      logic [PERF_CNTR_W-1:0]  wr_dest_valid_cnt;
+    } t_wr_dest_perf_cntr; 
 
     typedef struct packed {
-      logic [$clog2(DMA_DESCRIPTOR_FIFO_DEPTH)-1:0] descriptor_fifo_count;
-      logic [`NUM_RD_STATES-1:0] rd_state;        // 23:20
-      logic [`NUM_WR_STATES-1:0] wr_state;        // 19:16
-      logic [1:0]  rd_resp_enc;                   // 15:14
-      logic        rd_rsp_err;                    // 13 
-      logic [1:0]  wr_resp_enc;                   // 12:11
-      logic        wr_rsp_err;                    // 10
-      logic        irq;                           // 9
-      logic        stopped_on_early_termination;  // 8
-      logic        stopped_on_error;              // 7
-      logic        resetting;                     // 6
-      logic        stopped;                       // 5
-      logic        response_fifo_full;            // 4
-      logic        response_fifo_empty;           // 3
-      logic        descriptor_fifo_full;          // 2
-      logic        descriptor_fifo_empty;         // 1
-      logic        busy;                          // 0
+      logic [PERF_CNTR_W-1:0]  rd_src_clk_cnt;
+      logic [PERF_CNTR_W-1:0]  rd_src_valid_cnt;                          
+    } t_rd_src_perf_cntr;
+
+    typedef struct packed {
+      t_wr_dest_perf_cntr wr_dest_perf_cntr;
+      t_rd_src_perf_cntr  rd_src_perf_cntr;
+      logic [35:0]  rsvd_63_28;
+      logic [$clog2(DMA_DESCRIPTOR_FIFO_DEPTH)-1:0] descriptor_fifo_count;// 27:24
+      logic [`NUM_RD_STATES-1:0] rd_state;                                // 23:20
+      logic [`NUM_WR_STATES-1:0] wr_state;                                // 19:16
+      logic [1:0]  rd_resp_enc;                                           // 15:14
+      logic        rd_rsp_err;                                            // 13 
+      logic [1:0]  wr_resp_enc;                                           // 12:11
+      logic        wr_rsp_err;                                            // 10
+      logic        irq;                                                   // 9
+      logic        stopped_on_early_termination;                          // 8
+      logic        stopped_on_error;                                      // 7
+      logic        resetting;                                             // 6
+      logic        stopped;                                               // 5
+      logic        response_fifo_full;                                    // 4
+      logic        response_fifo_empty;                                   // 3
+      logic        descriptor_fifo_full;                                  // 2
+      logic        descriptor_fifo_empty;                                 // 1
+      logic        busy;                                                  // 0
     } t_dma_csr_status;
 
     typedef struct packed {
@@ -207,7 +222,7 @@ package dma_pkg;
     } t_dma_csr_config1;
 
     typedef struct packed {
-      logic [8:0]  rsvd;                        // 31:23
+      logic [8:0]  clk_speed_mhz;               // 31:23
       logic [1:0]  transfer_type;               // 22:21
       logic [1:0]  response_port;               // 20:19
       logic        programmable_burtst_enable;  // 18

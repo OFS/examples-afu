@@ -79,7 +79,10 @@ module csr_mgr #(
 
 
     // Read only fixed register assignments
-    assign dma_csr_map.status.descriptor_fifo_count       ='b0;        
+    assign dma_csr_map.status.wr_dest_perf_cntr             = dma_csr_status.wr_dest_perf_cntr;
+    assign dma_csr_map.status.rd_src_perf_cntr              = dma_csr_status.rd_src_perf_cntr;
+    assign dma_csr_map.status.rsvd_63_28                    ='b0;
+    assign dma_csr_map.status.descriptor_fifo_count         ='b0;        
     assign dma_csr_map.status.rd_state                      ='b0;
     assign dma_csr_map.status.wr_state                      ='b0;
     assign dma_csr_map.status.rd_resp_enc                   ='b0;   // TODO:
@@ -111,7 +114,7 @@ module csr_mgr #(
     assign dma_csr_map.config1.burst_wrapping_support   = 'b0;  // TODO:
     assign dma_csr_map.config1.burst_enable             = 'b0;  // TODO:
  
-    assign dma_csr_map.config2.rsvd                         = 'b0;
+    assign dma_csr_map.config2.clk_speed_mhz                = 400;  //400MHz clk
     assign dma_csr_map.config2.transfer_type                = 'b0;  // TODO:
     assign dma_csr_map.config2.response_port                = 'b0;  // TODO:
     assign dma_csr_map.config2.programmable_burtst_enable   = 'b0;  // TODO:
@@ -194,7 +197,7 @@ module csr_mgr #(
               DMA_DEST_ADDR:           mmio64_reg.r.data <= dma_csr_map.descriptor.dest_addr;
               DMA_LENGTH:              mmio64_reg.r.data <= dma_csr_map.descriptor.length;
               DMA_DESCRIPTOR_CONTROL:  mmio64_reg.r.data <= dma_csr_map.descriptor.descriptor_control;
-
+              
               DMA_STATUS:              mmio64_reg.r.data <= dma_csr_map.status;
               DMA_CONTROL:             mmio64_reg.r.data <= dma_csr_map.control;
               DMA_WR_RE_FILL_LEVEL:    mmio64_reg.r.data <= dma_csr_map.wr_re_fill_level;
@@ -203,6 +206,8 @@ module csr_mgr #(
               DMA_CONFIG_1:            mmio64_reg.r.data <= dma_csr_map.config1;
               DMA_CONFIG_2:            mmio64_reg.r.data <= dma_csr_map.config2;
               DMA_TYPE_VERSION:        mmio64_reg.r.data <= dma_csr_map.info;
+              DMA_RD_SRC_PERF_CNTR:    mmio64_reg.r.data <= dma_csr_map.status.rd_src_perf_cntr;
+              DMA_WR_DEST_PERF_CNTR:   mmio64_reg.r.data <= dma_csr_map.status.wr_dest_perf_cntr;
             endcase
 
         end else if (mmio64_to_afu.rready) begin

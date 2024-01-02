@@ -22,6 +22,8 @@
 #define DMA_CSR_IDX_CONFIG_1           0xE
 #define DMA_CSR_IDX_CONFIG_2           0xF
 #define DMA_CSR_IDX_TYPE_VERSION       0x10
+#define DMA_CSR_IDX_RD_SRC_PERF_CNTR   0x11
+#define DMA_CSR_IDX_WR_DEST_PERF_CNTR  0x12
 #define MODE_SHIFT                     26
 
 #define CONTROL_BUSY_BIT               1
