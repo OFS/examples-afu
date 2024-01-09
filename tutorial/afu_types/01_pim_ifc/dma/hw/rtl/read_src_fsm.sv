@@ -18,7 +18,7 @@ module read_src_fsm #(
    dma_fifo_if.wr_out  wr_fifo_if
 );
 
-   `define NUM_STATES 4
+   `define NUM_RD_STATES 6
    localparam AXI_SIZE_W = $bits(src_mem.ar.size);
 
    enum {
@@ -29,12 +29,12 @@ module read_src_fsm #(
       ERROR_BIT
    } index;
 
-   enum logic [`NUM_STATES-1:0] {
-      IDLE            = `NUM_STATES'b1<<IDLE_BIT,
-      ADDR_SETUP      = `NUM_STATES'b1<<ADDR_SETUP_BIT,
-      CP_RSP_TO_FIFO  = `NUM_STATES'b1<<CP_RSP_TO_FIFO_BIT,
-      WAIT_FOR_WR_RSP = `NUM_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
-      ERROR           = `NUM_STATES'b1<<ERROR_BIT,
+   enum logic [`NUM_RD_STATES-1:0] {
+      IDLE            = `NUM_RD_STATES'b1<<IDLE_BIT,
+      ADDR_SETUP      = `NUM_RD_STATES'b1<<ADDR_SETUP_BIT,
+      CP_RSP_TO_FIFO  = `NUM_RD_STATES'b1<<CP_RSP_TO_FIFO_BIT,
+      WAIT_FOR_WR_RSP = `NUM_RD_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
+      ERROR           = `NUM_RD_STATES'b1<<ERROR_BIT,
       XXX = 'x
    } state, next;
 
@@ -42,11 +42,11 @@ module read_src_fsm #(
       input [1:0] burst_mode;
       begin
          case (burst_mode)
-            STAND_BY:    return XXX;
-            HOST_TO_DDR: return BURST_WRAP;
-            DDR_TO_HOST: return BURST_INCR;
-            DDR_TO_DDR:  return BURST_INCR;
-            default:     return XXX;
+            dma_pkg::STAND_BY:    return XXX;
+            dma_pkg::HOST_TO_DDR: return dma_pkg::BURST_WRAP;
+            dma_pkg::DDR_TO_HOST: return dma_pkg::BURST_INCR;
+            dma_pkg::DDR_TO_DDR:  return dma_pkg::BURST_INCR;
+            default:              return XXX;
          endcase
       end
     endfunction

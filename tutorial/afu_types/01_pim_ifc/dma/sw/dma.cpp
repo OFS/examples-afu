@@ -79,31 +79,38 @@ static inline void writeMMIO64(uint32_t idx, uint64_t v) {
     }
 }
 
-void print_bandwidth() {
+void print_bandwidth(e_dma_mode descriptor_mode) {
     uint64_t rd_src_clk_cnt;
     uint64_t rd_src_valid_cnt;
-    uint64_t rd_src_bw;
     uint64_t wr_dest_clk_cnt;
     uint64_t wr_dest_valid_cnt;
     uint64_t wr_dest_bw;
-    uint64_t rd_src_perf_cntr = readMMIO64(DMA_CSR_IDX_RD_SRC_PERF_CNTR);
-    printf("  RD_SRC_PERF_CNTR:       %016lX\n", rd_src_perf_cntr);
-    rd_src_valid_cnt = rd_src_perf_cntr & 0xFFFFFFFF;
-    rd_src_clk_cnt = rd_src_perf_cntr>>32;
+    // Gather Read statistics and calculate bandwidth 
+    const uint64_t rd_src_perf_cntr = readMMIO64(DMA_CSR_IDX_RD_SRC_PERF_CNTR);
+    rd_src_valid_cnt = rd_src_perf_cntr & 0xFFFFFFFF; //keep lower 32 bits
+    rd_src_clk_cnt = rd_src_perf_cntr>>32;            //Keeper upper 32 bits
     rd_src_clk_cnt &= 0xFFFFFFFF;
-    //rd_src_bw = (rd_src_valid_cnt * 400000000 * 512) / rd_src_clk_cnt;
-    //printf(" ReadSource BW = %ld\n", rd_src_bw);
-    printf("RdSrcClkCnt = %ld\n", rd_src_clk_cnt);
-    printf("RdSrcValidCnt = %ld\n", rd_src_valid_cnt);
+    const double read_uptime = (rd_src_valid_cnt*1.0) / (rd_src_clk_cnt*1.0);
+    if (descriptor_mode == ddr_to_host) {
+        printf("AFU Read ");
+    } else {
+        printf("Host to AFU ");
+    }
+    printf("Read BW = %f GB/S\n", read_uptime * MAX_TRPT_BYTES / 1000.0);
 
-    uint64_t wr_dest_perf_cntr = readMMIO64(DMA_CSR_IDX_WR_DEST_PERF_CNTR);
-    printf("  WR_DEST_PERF_CNTR:       %016lX\n", wr_dest_perf_cntr);
+    // Gather Write statistics and calculate bandwidth 
+    const uint64_t wr_dest_perf_cntr = readMMIO64(DMA_CSR_IDX_WR_DEST_PERF_CNTR);
     wr_dest_valid_cnt = wr_dest_perf_cntr & 0xFFFFFFFF;
     wr_dest_clk_cnt = wr_dest_perf_cntr>>32;
     wr_dest_clk_cnt &= 0xFFFFFFFF;
-    //wr_dest_bw = (wr_dest_valid_cnt * 400000000 * 512) / wr_dest_clk_cnt;
-    printf("WriteDestClkCnt = %ld\n", wr_dest_clk_cnt);
-    printf("WriteDestValidCnt = %ld\n", wr_dest_valid_cnt);
+    const double write_uptime = (wr_dest_valid_cnt*1.0) / (wr_dest_clk_cnt*1.0);
+    if (descriptor_mode == ddr_to_host) {
+        printf("Host to AFU ");
+    } else {
+        printf("DDR to AFU ");
+    }
+    printf("Write BW = %f GB/S\n", write_uptime * MAX_TRPT_BYTES / 1000.0);
+ 
 }
 
 
@@ -369,19 +376,19 @@ int run_round_trip_transfer(fpga_handle accel_handle) {
       
    // Transfer dma_buf to fpga memory
    dma_transfer(accel_handle, host_to_ddr, dma_buf_iova | DMA_HOST_MASK, fpga_mem_addr, dma_len);
-   print_bandwidth();
+   print_bandwidth(host_to_ddr);
    // Clear dma_buf
    memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
    // Read data back from fpga memory 
    dma_transfer(accel_handle, ddr_to_host, fpga_mem_addr, dma_buf_iova | DMA_HOST_MASK, dma_len); 
 
-   printf ("\nBuffer after transfer:\n");
-   for(int i = 0; i < test_buffer_word_size; i++) {
-      if (i%8 == 0) printf("\nbuffer[%d] = ", i);
-      printf("%016lx",dma_buf_ptr[i]);
-   }
-   printf("\n");
-   print_bandwidth();
+ //printf ("\nBuffer after transfer:\n");
+ //for(int i = 0; i < test_buffer_word_size; i++) {
+ //   if (i%8 == 0) printf("\nbuffer[%d] = ", i);
+ //   printf("%016lx",dma_buf_ptr[i]);
+ //}
+ //printf("\n");
+   print_bandwidth(ddr_to_host);
 
    // Check expected result
    if(memcmp((void *)dma_buf_ptr, (void *)expected_result, test_buffer_size) != 0) {

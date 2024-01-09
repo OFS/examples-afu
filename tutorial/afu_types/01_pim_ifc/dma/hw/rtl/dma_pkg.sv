@@ -5,7 +5,7 @@
 
 package dma_pkg;
   `define NUM_RD_STATES 6
-  `define NUM_WR_STATES 5
+  `define NUM_WR_STATES 6
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   //
   // Parameters

@@ -5,6 +5,8 @@
 #define __DMA_H__
 
 #define USE_ASE
+#define CLOCK_RATE_MHZ                 400 //400MHz
+#define MAX_TRPT_BYTES                 (CLOCK_RATE_MHZ * 64) //64 Bytes per AXI read/write.
 #define DMA_CSR_IDX_DFH                0x0
 #define DMA_CSR_IDX_GUID_L             0x1
 #define DMA_CSR_IDX_GUID_H             0x2

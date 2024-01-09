@@ -18,10 +18,10 @@ module write_dest_fsm #(
    dma_fifo_if.rd_out  rd_fifo_if
 );
 
-   localparam TLAST_COUNTER_W = dest_mem.ADDR_BYTE_IDX_WIDTH + LENGTH_W;
+   localparam TLAST_COUNTER_W = dest_mem.ADDR_BYTE_IDX_WIDTH + dma_pkg::LENGTH_W;
    localparam AXI_SIZE_W = $bits(dest_mem.aw.size);
 
-   `define NUM_STATES 6
+   `define NUM_WR_STATES 6
 
    enum {
       IDLE_BIT,
@@ -32,13 +32,13 @@ module write_dest_fsm #(
       ERROR_BIT
    } index;
 
-   enum logic [`NUM_STATES-1:0] {
-      IDLE            = `NUM_STATES'b1<<IDLE_BIT,
-      ADDR_SETUP      = `NUM_STATES'b1<<ADDR_SETUP_BIT,
-      FIFO_EMPTY      = `NUM_STATES'b1<<FIFO_EMPTY_BIT,
-      RD_FIFO_WR_DEST = `NUM_STATES'b1<<RD_FIFO_WR_DEST_BIT,
-      WAIT_FOR_WR_RSP = `NUM_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
-      ERROR           = `NUM_STATES'b1<<ERROR_BIT,
+   enum logic [`NUM_WR_STATES-1:0] {
+      IDLE            = `NUM_WR_STATES'b1<<IDLE_BIT,
+      ADDR_SETUP      = `NUM_WR_STATES'b1<<ADDR_SETUP_BIT,
+      FIFO_EMPTY      = `NUM_WR_STATES'b1<<FIFO_EMPTY_BIT,
+      RD_FIFO_WR_DEST = `NUM_WR_STATES'b1<<RD_FIFO_WR_DEST_BIT,
+      WAIT_FOR_WR_RSP = `NUM_WR_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
+      ERROR           = `NUM_WR_STATES'b1<<ERROR_BIT,
       XXX             = 'x
    } state, next;
 
@@ -62,11 +62,11 @@ module write_dest_fsm #(
       input [1:0] burst_mode;
       begin
          case (burst_mode)
-            STAND_BY:    return XXX;
-            HOST_TO_DDR: return BURST_INCR;
-            DDR_TO_HOST: return BURST_WRAP;
-            DDR_TO_DDR:  return BURST_INCR;
-            default:     return XXX;
+            dma_pkg::STAND_BY:    return XXX;
+            dma_pkg::HOST_TO_DDR: return dma_pkg::BURST_INCR;
+            dma_pkg::DDR_TO_HOST: return dma_pkg::BURST_WRAP;
+            dma_pkg::DDR_TO_DDR:  return dma_pkg::BURST_INCR;
+            default:              return XXX;
          endcase
       end
     endfunction
