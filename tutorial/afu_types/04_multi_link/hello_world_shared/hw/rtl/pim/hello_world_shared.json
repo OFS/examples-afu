@@ -1,0 +1,28 @@
+{
+   "version": 1,
+   "afu-image": {
+      "power": 0,
+      "afu-top-interface":
+         {
+            "name": "ofs_plat_afu"
+         },
+      "accelerator-clusters":
+         [
+            {
+               "name": "hello_world_shared",
+               "total-contexts": 1,
+               "accelerator-type-uuid": "1d819aa3-5bf9-41b8-b288-d6b1ba823a5d"
+            },
+            {
+               "name": "hello_world_child0",
+               "total-contexts": 1,
+               "accelerator-type-uuid": "251e403c-9520-40f0-91bb-e8c891a3d015"
+            },
+            {
+               "name": "hello_world_child1",
+               "total-contexts": 1,
+               "accelerator-type-uuid": "35f02025-b4cc-4ff7-ae5b-b5b32f0e6bbd"
+            }
+         ]
+   }
+}

@@ -1,0 +1,7 @@
+hello_world_multi.json
+
+ofs_plat_afu.sv
+hello_world_axi.sv
+
+# Pointer to software:
+# sw:../../../sw/hello_world_multi

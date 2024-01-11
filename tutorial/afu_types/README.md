@@ -15,6 +15,7 @@ The tutorial implements a collection of AFUs in the three design patterns. When 
 - [Section 1](01_pim_ifc/): AFUs that use the PIM for both the top-level interface and device mapping. One of the PIM's key features is the ability to transform a host channel, such as PCIe Transaction Layer Protocol \(TLP\), into a generic AXI memory mapped interface. AFUs can access host memory and manage CSRs with AXI-MM interfaces, leaving TLP encoding to the PIM.
 - [Section 2](02_hybrid/): Hybrid designs using a mixture of PIM and native AFUs. The top-level interface is the platform-specific afu\_main\(\).
 - [Section 3](03_afu_main/): Platform-specific logic, instantiated from afu\_main\(\).
+- [Section 4](04_multi_link/): AFUs that combine multiple PCIe links, or multiple PCIe functions. OFS and the OPAE SDK can be configured to manage multiple PCIe device interfaces as a single logical interface.
 
 __The mechanics of simulating, synthesizing and running all of the examples are covered in the [hello world](01_pim_ifc/hello_world/) tutorial in [Section 1](01_pim_ifc/). We strongly encourage you to start with that example even if you have no plans to use the PIM.__
 
