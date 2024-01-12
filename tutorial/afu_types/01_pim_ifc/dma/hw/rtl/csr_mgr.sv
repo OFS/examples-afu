@@ -81,47 +81,47 @@ module csr_mgr #(
     // Read only fixed register assignments
     assign dma_csr_map.status.wr_dest_perf_cntr             = dma_csr_status.wr_dest_perf_cntr;
     assign dma_csr_map.status.rd_src_perf_cntr              = dma_csr_status.rd_src_perf_cntr;
-    assign dma_csr_map.status.rsvd_63_28                    ='b0;
-    assign dma_csr_map.status.descriptor_fifo_count         ='b0;        
-    assign dma_csr_map.status.rd_state                      ='b0;
-    assign dma_csr_map.status.wr_state                      ='b0;
-    assign dma_csr_map.status.rd_resp_enc                   ='b0;   // TODO:
-    assign dma_csr_map.status.rd_rsp_err                    ='b0;   // TODO:
-    assign dma_csr_map.status.wr_resp_enc                   ='b0;   // TODO:
-    assign dma_csr_map.status.wr_rsp_err                    ='b0;   // TODO:
-    assign dma_csr_map.status.irq                           ='b0;   // TODO:
-    assign dma_csr_map.status.stopped_on_early_termination  ='b0;   // TODO:
-    assign dma_csr_map.status.stopped_on_error              ='b0;   // TODO:
-    assign dma_csr_map.status.resetting                     ='b0;   // TODO:
-    assign dma_csr_map.status.stopped                       ='b0;   // TODO:
-    assign dma_csr_map.status.response_fifo_full            ='b0;   // TODO:
-    assign dma_csr_map.status.response_fifo_empty           ='b0;   // TODO:
+    assign dma_csr_map.status.rsvd_63_30                    ='b0;
+    assign dma_csr_map.status.dma_mode                      = dma_csr_status.dma_mode;
+    assign dma_csr_map.status.descriptor_count              = dma_csr_status.descriptor_count;  
+    assign dma_csr_map.status.rd_state                      = dma_csr_status.rd_state;
+    assign dma_csr_map.status.wr_state                      = dma_csr_status.wr_state;
+    assign dma_csr_map.status.rd_resp_enc                   = NOT_SUPPORTED;   
+    assign dma_csr_map.status.rd_rsp_err                    = dma_csr_status.rd_rsp_err;   
+    assign dma_csr_map.status.wr_resp_enc                   = NOT_SUPPORTED;   
+    assign dma_csr_map.status.wr_rsp_err                    = dma_csr_status.wr_rsp_err;   
+    assign dma_csr_map.status.irq                           = NOT_SUPPORTED;
+    assign dma_csr_map.status.stopped_on_early_termination  = NOT_SUPPORTED;
+    assign dma_csr_map.status.stopped_on_error              = dma_csr_status.stopped_on_error;   
+    assign dma_csr_map.status.resetting                     = dma_csr_map.control.reset_dispatcher;
+    assign dma_csr_map.status.stopped                       = dma_csr_map.control.stop_dispatcher;   
+    assign dma_csr_map.status.response_fifo_full            = dma_csr_status.response_fifo_full;   
+    assign dma_csr_map.status.response_fifo_empty           = dma_csr_status.response_fifo_empty;   
     assign dma_csr_map.status.descriptor_fifo_full          = dma_csr_status.descriptor_fifo_full;
     assign dma_csr_map.status.descriptor_fifo_empty         = dma_csr_status.descriptor_fifo_empty;
     assign dma_csr_map.status.busy                          = dma_csr_status.busy;
 
-    assign dma_csr_map.config1.max_byte                 = 'b0;  // TODO:
-    assign dma_csr_map.config1.max_burst_count          = 'b0;  // TODO:
-    assign dma_csr_map.config1.error_width              = 'b0;  // TODO:
-    assign dma_csr_map.config1.error_enable             = 'b0;  // TODO:
-    assign dma_csr_map.config1.enhanced_features        = 'b0;  // TODO:
-    assign dma_csr_map.config1.dma_mode                 = 'b0;  // TODO:
-    assign dma_csr_map.config1.descriptor_fifo_depth    = DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED;;
-    assign dma_csr_map.config1.data_width               = 'b0;  // TODO:
-    assign dma_csr_map.config1.data_fifo_depth          = 'b0;  // TODO:
-    assign dma_csr_map.config1.channel_width            = 'b0;  // TODO:
-    assign dma_csr_map.config1.channel_enable           = 'b0;  // TODO:
-    assign dma_csr_map.config1.burst_wrapping_support   = 'b0;  // TODO:
-    assign dma_csr_map.config1.burst_enable             = 'b0;  // TODO:
+    assign dma_csr_map.config1.max_byte                 = 'b0;  
+    assign dma_csr_map.config1.max_burst_count          = 'b0;  
+    assign dma_csr_map.config1.error_width              = 'b0;  
+    assign dma_csr_map.config1.error_enable             = 'b0;  
+    assign dma_csr_map.config1.enhanced_features        = ENABLE_ERROR;  
+    assign dma_csr_map.config1.descriptor_fifo_depth    = DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED;
+    assign dma_csr_map.config1.data_width               = AXI_MM_DATA_W;  
+    assign dma_csr_map.config1.data_fifo_depth          = DMA_DATA_FIFO_DEPTH;  
+    assign dma_csr_map.config1.channel_width            = 'b0;  
+    assign dma_csr_map.config1.channel_enable           = 'b0;  
+    assign dma_csr_map.config1.burst_wrapping_support   = ENABLED;  
+    assign dma_csr_map.config1.burst_enable             = ENABLED;  
  
     assign dma_csr_map.config2.clk_speed_mhz                = 400;  //400MHz clk
-    assign dma_csr_map.config2.transfer_type                = 'b0;  // TODO:
-    assign dma_csr_map.config2.response_port                = 'b0;  // TODO:
-    assign dma_csr_map.config2.programmable_burtst_enable   = 'b0;  // TODO:
-    assign dma_csr_map.config2.prefetcher_enable            = 'b0;  // TODO:
-    assign dma_csr_map.config2.packet_enable                = 'b0;  // TODO: 
-    assign dma_csr_map.config2.max_stride                   = 'b0;  // TODO:
-    assign dma_csr_map.config2.stride_enable                = 'b0;  // TODO:
+    assign dma_csr_map.config2.transfer_type                = 'b0;  
+    assign dma_csr_map.config2.response_port                = 'b0;  
+    assign dma_csr_map.config2.programmable_burst_enable    = 'b0;  
+    assign dma_csr_map.config2.prefetcher_enable            = NOT_SUPPORTED;  
+    assign dma_csr_map.config2.packet_enable                = NOT_SUPPORTED;   
+    assign dma_csr_map.config2.max_stride                   = NOT_SUPPORTED;  
+    assign dma_csr_map.config2.stride_enable                = NOT_SUPPORTED;  
    
 
     // Use a copy of the MMIO interface as registers.
@@ -291,7 +291,7 @@ module csr_mgr #(
         // There is no flow control on the module's outgoing read/write command
         // ports. If a request was trigger in the last cycle, it was sent.
 
-        if (dma_csr_map.descriptor.descriptor_control.go) begin
+        if (dma_csr_map.descriptor.descriptor_control.go) begin //make sure descriptor fifo is not full?
             dma_csr_map.descriptor.descriptor_control.go <= 'b0;
         end
 
@@ -320,7 +320,7 @@ module csr_mgr #(
         end
     end
 
-  //// TODO: used for testing; remove
+  // used for testing; remove
   //assign control.mode       = dma_csr_map.descriptor.control.mode;
   //assign control.descriptor = dma_csr_map.descriptor;
   //always_ff @(posedge clk) begin

@@ -203,11 +203,11 @@ static fpga_handle connect_to_accel(const char *accel_uuid, bool *is_ase_sim)
 }
 
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     fpga_result r;
     fpga_handle accel_handle;
     bool is_ase_sim;
+    bool verbose = 1;
 
     if (parse_args(argc, argv) < 0)
         return 1;
@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
     // Run tests
     int status = 0;
     status = dma(accel_handle, is_ase_sim,
-                         chunk_size, completion_freq, use_interrupts,
+                         chunk_size, completion_freq, verbose,
                          max_reqs_in_flight);
 
     // Done

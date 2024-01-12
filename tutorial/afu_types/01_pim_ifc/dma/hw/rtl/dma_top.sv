@@ -31,11 +31,6 @@ module dma_top #(
     logic reset_n;
     assign reset_n = host_mem.reset_n;
 
-    // Maximum number of copy commands in flight. This is exposed in a CSR. It
-    // is the host's responsibility not to exceed. The host can track completions
-    // by requesting interrupts.
-    localparam MAX_REQS_IN_FLIGHT = 32;
-
     // ====================================================================
     //
     // CSR (MMIO) manager. Handle all MMIO reads and writes from the host
@@ -47,6 +42,7 @@ module dma_top #(
     dma_pkg::t_dma_csr_status dma_csr_status;
     dma_pkg::t_dma_csr_status wr_dest_status;
     dma_pkg::t_dma_csr_status rd_src_status;
+    dma_pkg::t_dma_csr_status dma_engine_status;
     dma_pkg::t_dma_descriptor dma_descriptor;
     dma_fifo_if #(.DATA_W ($bits(dma_pkg::t_dma_descriptor))) wr_desc_fifo_if();
     dma_fifo_if #(.DATA_W ($bits(dma_pkg::t_dma_descriptor))) rd_desc_fifo_if();
@@ -59,26 +55,27 @@ module dma_top #(
        wr_desc_fifo_if.wr_en   = dma_csr_map.descriptor.descriptor_control.go;
      
        dma_descriptor            = rd_desc_fifo_if.rd_data;
-       rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
+       rd_desc_fifo_if.rd_en     = descriptor_fifo_rdack;
        descriptor_fifo_not_empty = rd_desc_fifo_if.not_empty;
        dma_csr_status                              = 0;
-       dma_csr_status.rsvd_63_28                   = 0;
+       dma_csr_status.rsvd_63_30                   = 0;
+       dma_csr_status.dma_mode                     = dma_descriptor.descriptor_control.mode;
        dma_csr_status.wr_dest_perf_cntr            = wr_dest_status.wr_dest_perf_cntr;
        dma_csr_status.rd_src_perf_cntr             = rd_src_status.rd_src_perf_cntr;
-       dma_csr_status.descriptor_fifo_count        = 0;
+       dma_csr_status.descriptor_count             = rd_src_status.descriptor_count;
        dma_csr_status.rd_state                     = rd_src_status.rd_state;
        dma_csr_status.wr_state                     = wr_dest_status.wr_state;
        dma_csr_status.rd_resp_enc                  = '0;
-       dma_csr_status.rd_rsp_err                   = '0;
+       dma_csr_status.rd_rsp_err                   = rd_src_status.rd_rsp_err;
        dma_csr_status.wr_resp_enc                  = '0;
-       dma_csr_status.wr_rsp_err                   = '0;
+       dma_csr_status.wr_rsp_err                   = wr_dest_status.wr_rsp_err;
        dma_csr_status.irq                          = '0;
        dma_csr_status.stopped_on_early_termination = '0;
        dma_csr_status.stopped_on_error             = wr_dest_status.stopped_on_error | rd_src_status.stopped_on_error; 
        dma_csr_status.resetting                    = '0; 
        dma_csr_status.stopped                      = '0; 
-       dma_csr_status.response_fifo_full           = 1'b0;
-       dma_csr_status.response_fifo_empty          = 1'b0;
+       dma_csr_status.response_fifo_full           = dma_engine_status.response_fifo_full;
+       dma_csr_status.response_fifo_empty          = dma_engine_status.response_fifo_empty;
        dma_csr_status.descriptor_fifo_full         = ~wr_desc_fifo_if.not_full;
        dma_csr_status.descriptor_fifo_empty        = ~rd_desc_fifo_if.not_empty;
        dma_csr_status.busy                         = wr_dest_status.busy | rd_src_status.busy;
@@ -86,7 +83,6 @@ module dma_top #(
 
 
     csr_mgr #(
-        .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT),
         // Maximum burst length is dictated by the size of the field in
         // the AXI-MM host_mem. The PIM will map AXI-MM bursts to legal
         // host channel bursts, including guaranteeing to satisfy any
@@ -111,7 +107,7 @@ module dma_top #(
       .almostFull(),
 
       .first(rd_desc_fifo_if.rd_data),
-      .deq_en(rd_desc_fifo_if.rd_en),
+      .deq_en(rd_desc_fifo_if.rd_en & !dma_csr_map.control.stop_descriptors),
       .notEmpty(rd_desc_fifo_if.not_empty)
     );
 
@@ -162,7 +158,6 @@ module dma_top #(
     );
    
     dma_engine #(
-        .MAX_REQS_IN_FLIGHT(MAX_REQS_IN_FLIGHT)
     ) dma_engine_inst (
         .clk,
         .reset_n,
@@ -175,7 +170,8 @@ module dma_top #(
         // Commands
         .csr_control (dma_csr_map.control),
         .wr_dest_status,
-        .rd_src_status
+        .rd_src_status,
+        .dma_engine_status
     );
 
 

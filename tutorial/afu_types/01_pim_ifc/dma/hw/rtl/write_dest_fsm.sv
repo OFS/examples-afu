@@ -115,7 +115,7 @@ module write_dest_fsm #(
 
          state[WAIT_FOR_WR_RSP_BIT]:
             if (wr_resp_ok) next = IDLE;
-            else if (wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
+            else if (ENABLE_ERROR & wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
             else next = WAIT_FOR_WR_RSP;
  
          state[ERROR_BIT]:
@@ -166,6 +166,8 @@ module write_dest_fsm #(
            end
 
            next[ERROR_BIT]: begin end
+
+           default: begin end
           
        endcase
      end
@@ -176,6 +178,7 @@ module write_dest_fsm #(
       dest_mem.bready                 = 1'b0;
       wr_fsm_done                     = 1'b0;
       wr_dest_status.stopped_on_error = 1'b0;
+      wr_dest_status.wr_rsp_err       = 1'b0;
       dest_mem.w.strb                 = '1;
       dest_mem.wvalid                 = 1'b0;
       dest_mem.w.last                 = 1'b0;
@@ -198,7 +201,9 @@ module write_dest_fsm #(
          end
          state[ERROR_BIT]:begin 
             wr_dest_status.stopped_on_error = 1'b1;
+            wr_dest_status.wr_rsp_err       = 1'b1;
          end
+         default: begin end
       endcase
    end
 

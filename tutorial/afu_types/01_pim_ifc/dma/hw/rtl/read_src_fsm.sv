@@ -88,14 +88,15 @@ module read_src_fsm #(
 
   always_ff @(posedge clk) begin
      if (!reset_n) begin
-        rd_src_clk_cnt        <= '0;
-        rd_src_valid_cnt      <= '0;
-        rd_src_status.busy    <= 1'b0;
-        src_mem.arvalid       <= 1'b0;
-        src_mem.wvalid        <= 1'b0;
-        src_mem.awvalid       <= 1'b0;
-        src_mem.ar            <= '0;
-        wr_fifo_if.wr_en      <= 1'b0;
+        rd_src_clk_cnt                 <= '0;
+        rd_src_valid_cnt               <= '0;
+        rd_src_status.busy             <= 1'b0;
+        src_mem.arvalid                <= 1'b0;
+        src_mem.wvalid                 <= 1'b0;
+        src_mem.awvalid                <= 1'b0;
+        src_mem.ar                     <= '0;
+        wr_fifo_if.wr_en               <= 1'b0;
+        rd_src_status.descriptor_count <= '0;
      end else begin
         unique case (1'b1)
            next[IDLE_BIT]: begin
@@ -124,11 +125,14 @@ module read_src_fsm #(
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin
-              wr_fifo_if.wr_data <= src_mem.r.data;
-              wr_fifo_if.wr_en   <= !wr_fifo_if.almost_full & src_mem.rvalid & src_mem.r.last;
+              wr_fifo_if.wr_data             <= src_mem.r.data;
+              wr_fifo_if.wr_en               <= !wr_fifo_if.almost_full & src_mem.rvalid & src_mem.r.last;
+              rd_src_status.descriptor_count <= rd_src_status.descriptor_count + descriptor_fifo_rdack;
            end
 
            next[ERROR_BIT]: begin end
+
+           default: begin end
        endcase
      end
   end
@@ -138,6 +142,7 @@ module read_src_fsm #(
       descriptor_fifo_rdack          = 1'b0;
       src_mem.rready                 = 1'b0;
       rd_src_status.stopped_on_error = 1'b0;
+      rd_src_status.rd_rsp_err       = 1'b0;
       unique case (1'b1)
          state[IDLE_BIT]: begin end
 
@@ -153,7 +158,10 @@ module read_src_fsm #(
 
          state[ERROR_BIT]: begin
             rd_src_status.stopped_on_error = 1'b1;
+            rd_src_status.rd_rsp_err       = 1'b1;
          end
+
+         default: begin end
 
       endcase
    end

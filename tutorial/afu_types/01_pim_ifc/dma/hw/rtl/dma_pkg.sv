@@ -13,6 +13,7 @@ package dma_pkg;
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   localparam PERF_CNTR_W = 32;
+  localparam DMA_DATA_FIFO_DEPTH = 32;
   localparam DMA_DESCRIPTOR_FIFO_DEPTH = 16;
   localparam DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED = 
     (DMA_DESCRIPTOR_FIFO_DEPTH == 8)    ? 0 :
@@ -24,11 +25,23 @@ package dma_pkg;
     (DMA_DESCRIPTOR_FIFO_DEPTH == 512)  ? 6 :
     (DMA_DESCRIPTOR_FIFO_DEPTH == 1024) ? 7 : 'X; // 'X for undefined cases
   
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-  //
-  // CSR
-  //
-  // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    //
+    // CSR
+    //
+    // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    // =========================================================================
+    //
+    // DMA Configuration/Settings 
+    //
+    // =========================================================================
+    localparam ENABLED  = 1; 
+    localparam DISABLED = 0; 
+    localparam NOT_SUPPORTED = '0;
+    localparam ENABLE_ERROR = 1;
+
+
 
     // =========================================================================
     //
@@ -160,10 +173,11 @@ package dma_pkg;
     typedef struct packed {
       t_wr_dest_perf_cntr wr_dest_perf_cntr;
       t_rd_src_perf_cntr  rd_src_perf_cntr;
-      logic [35:0]  rsvd_63_28;
-      logic [$clog2(DMA_DESCRIPTOR_FIFO_DEPTH)-1:0] descriptor_fifo_count;// 27:24
-      logic [`NUM_RD_STATES-1:0] rd_state;                                // 23:20
-      logic [`NUM_WR_STATES-1:0] wr_state;                                // 19:16
+      logic [35:0]  rsvd_63_30;
+      logic [1:0] dma_mode;                                               // 33:32
+      logic [$clog2(DMA_DESCRIPTOR_FIFO_DEPTH)-1:0] descriptor_count;     // 31:28
+      logic [`NUM_RD_STATES-1:0] rd_state;                                // 27:22
+      logic [`NUM_WR_STATES-1:0] wr_state;                                // 21:16
       logic [1:0]  rd_resp_enc;                                           // 15:14
       logic        rd_rsp_err;                                            // 13 
       logic [1:0]  wr_resp_enc;                                           // 12:11
@@ -211,7 +225,6 @@ package dma_pkg;
       logic [2:0] error_width;            // 22:20
       logic       error_enable;           // 19
       logic       enhanced_features;      // 18
-      logic [1:0] dma_mode;               // 17:16
       logic [2:0] descriptor_fifo_depth;  // 15:13
       logic [2:0] data_width;             // 12:10
       logic [3:0] data_fifo_depth;        // 9:6
@@ -225,7 +238,7 @@ package dma_pkg;
       logic [8:0]  clk_speed_mhz;               // 31:23
       logic [1:0]  transfer_type;               // 22:21
       logic [1:0]  response_port;               // 20:19
-      logic        programmable_burtst_enable;  // 18
+      logic        programmable_burst_enable;   // 18
       logic        prefetcher_enable;           // 17
       logic        packet_enable;               // 16
       logic [14:0] max_stride;                  // 15:1
