@@ -18,37 +18,32 @@
 #include "dma.h"
 
 
-static uint32_t chunk_size = 8192;
-static uint32_t completion_freq = 32;
-static uint32_t max_reqs_in_flight = 0;
-static bool use_interrupts = false;
+static uint32_t transfer_size = 8192;
+static bool verbose = false;
 
 
 //
 // Print help
-// TODO Out of date
 //
 static void
 help(void)
 {
     printf("\n"
            "Usage:\n"
-           "    dma [-h] [--chunk-size=<num bytes>]\n"
-           "                     [--completion-freq=<commands per completion>]\n"
-           "                     [--interrupts]\n"
+           "    dma [-h] [--transfer-size=<num bytes>]\n"
+           "                     [--verbose<>]\n"
+           "                     \n"
            "\n"
            "      -h,--help             Print this help\n"
            "\n"
-           "      -c,--chunk-size       Size, in bytes, of data to move with each read\n"
-           "                            or write request. (Default: 8KB)\n"
-           "      -f,--completion-freq  Number of commands per completion. Synchronization\n"
+           "      -s,--transfer-size    Size, in bytes, of data to move with each dma.\n"
+           "                            transfer. (Default: 8KB)\n"
+           "      -v,--verbose          Verbose.  Shows debug messages and prints out source \n"
+           "                            before the transfer and destination buffer after\n"
+           "                            the transfer\n"
            "                            overhead decreases as this value increases, since\n"
            "                            multiple completions are signaled with a single\n"
            "                            operation.\n"
-           "      -i,--interrupts       Use interrupts to signal completion of a command.\n"
-           "                            When not set, completion is signaled by a write\n"
-           "                            to host memory.\n"
-           "      -m,--max-reqs         Maximum number of commands in flight.\n"
            "\n");
 }
 
@@ -62,10 +57,8 @@ parse_args(int argc, char *argv[])
 {
     struct option longopts[] = {
         {"help",            no_argument,       NULL, 'h'},
-        {"chunk-size",      required_argument, NULL, 'c'},
-        {"completion-freq", required_argument, NULL, 'f'},
-        {"interrupts",      no_argument,       NULL, 'i'},
-        {"max-reqs",        required_argument, NULL, 'm'},
+        {"transfer-size",   required_argument, NULL, 's'},
+        {"verbose",         no_argument,       NULL, 'v'},
         {0, 0, 0, 0}
     };
 
@@ -87,43 +80,17 @@ parse_args(int argc, char *argv[])
             help();
             return -1;
 
-        case 'c': /* chunk-size */
+        case 's': /* transfer-size */
             endptr = NULL;
-            chunk_size = (uint32_t)strtoul(tmp_optarg, &endptr, 0);
-            if ((endptr != tmp_optarg + strlen(tmp_optarg)) || (chunk_size == 0)) {
-                fprintf(stderr, "Invalid chunk size: %s\n", tmp_optarg);
+            transfer_size = (uint32_t)strtoul(tmp_optarg, &endptr, 0);
+            if ((endptr != tmp_optarg + strlen(tmp_optarg)) || (transfer_size == 0)) {
+                fprintf(stderr, "Invalid transfer size: %s\n", tmp_optarg);
                 return -1;
             }
             break;
 
-        case 'f': /* completion-freq */
-            endptr = NULL;
-            completion_freq = (uint32_t)strtoul(tmp_optarg, &endptr, 0);
-            if (endptr != tmp_optarg + strlen(tmp_optarg)) {
-                fprintf(stderr, "Invalid completion frequency: %s\n", tmp_optarg);
-                return -1;
-            }
-            if ((completion_freq & (completion_freq - 1)) != 0) {
-                fprintf(stderr, "Completion frequency must be a power of 2: %s\n", tmp_optarg);
-                return -1;
-            }
-            break;
-
-        case 'i': /* interrupts */
-            use_interrupts = true;
-            break;
-
-        case 'm': /* max-reqs */
-            endptr = NULL;
-            max_reqs_in_flight = (uint32_t)strtoul(tmp_optarg, &endptr, 0);
-            if (endptr != tmp_optarg + strlen(tmp_optarg)) {
-                fprintf(stderr, "Invalid maximum requests: %s\n", tmp_optarg);
-                return -1;
-            }
-            if ((max_reqs_in_flight & (max_reqs_in_flight - 1)) != 0) {
-                fprintf(stderr, "Maximum requests in flight must be a power of 2: %s\n", tmp_optarg);
-                return -1;
-            }
+        case 'v': /* verbose (debug) */
+            verbose = true;
             break;
 
         case ':': /* missing option argument */
@@ -207,7 +174,6 @@ int main(int argc, char *argv[]) {
     fpga_result r;
     fpga_handle accel_handle;
     bool is_ase_sim;
-    bool verbose = 1;
 
     if (parse_args(argc, argv) < 0)
         return 1;
@@ -224,8 +190,7 @@ int main(int argc, char *argv[]) {
     // Run tests
     int status = 0;
     status = dma(accel_handle, is_ase_sim,
-                         chunk_size, completion_freq, verbose,
-                         max_reqs_in_flight);
+                         transfer_size, verbose);
 
     // Done
     fpgaClose(accel_handle);
