@@ -27,9 +27,8 @@ static uint64_t dma_dfh_offset = -256*1024;
 #define TOTAL_COPY_COMMANDS (s_is_ase_sim ? 1500L : 1000000L)
 #define DMA_BUFFER_SIZE (1024*1024)
 
-//#define TEST_BUFFER_SIZE_ASE 1 * 1024
-#define TEST_BUFFER_SIZE_ASE 256 
-#define TEST_BUFFER_SIZE_HW 1 * 1024
+#define TEST_BUFFER_SIZE_ASE 8 * 1024
+#define TEST_BUFFER_SIZE_HW 16 * 1024
 
 #define ON_ERR_GOTO(res, label, desc)  \
    do {                                \
@@ -244,7 +243,7 @@ void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t dev_src, u
    }
 }
 
-int run_basic_ddr_dma_test(fpga_handle accel_handle, bool verbose) {
+int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool verbose) {
    // Shared buffer in host memory 
    volatile uint64_t *dma_buf_ptr  = NULL;
    // Workspace ID used by OPAE to identify buffer
@@ -256,9 +255,10 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, bool verbose) {
    // Set test transfer size 
    uint32_t test_buffer_size;
    if(s_is_ase_sim)  
-      test_buffer_size = TEST_BUFFER_SIZE_ASE;
+      assert(transfer_size <= TEST_BUFFER_SIZE_ASE);
    else              
-      test_buffer_size = TEST_BUFFER_SIZE_HW; 
+      assert(test_buffer_size <= TEST_BUFFER_SIZE_HW);
+   test_buffer_size = transfer_size;
 
    // Set transfer size in number of beats of size awsize 
    const uint32_t awsize = 64; // 64 bytes per transfer - TODO: read the awsize from config register?
@@ -337,10 +337,8 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, bool verbose) {
 
 int dma(
     fpga_handle accel_handle, bool is_ase_sim,
-    uint32_t chunk_size,
-    uint32_t completion_freq,
-    bool verbose,
-    uint32_t max_reqs_in_flight)
+    uint32_t transfer_size,
+    bool verbose)
 {
     fpga_result r;
 
@@ -358,6 +356,6 @@ int dma(
         s_mmio_buf = tmp_ptr;
     }
 
-    run_basic_ddr_dma_test(s_accel_handle, verbose);
+    run_basic_ddr_dma_test(s_accel_handle, transfer_size, verbose);
     
 }

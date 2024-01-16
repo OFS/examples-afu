@@ -58,10 +58,8 @@ int run_basic_ddr_dma_test(fpga_handle afc_handle);
 
 int dma(
     fpga_handle accel_handle, bool is_ase_sim,
-    uint32_t chunk_size,
-    uint32_t completion_freq,
-    bool use_interrupts,
-    uint32_t max_reqs_in_flight);
+    uint32_t transfer_size,
+    bool verbose);
 
 #endif // __DMA_H__
 
