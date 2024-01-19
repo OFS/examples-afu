@@ -60,6 +60,7 @@ module read_src_fsm #(
     endfunction
 
    logic rlast_valid;
+   logic [dma_pkg::LENGTH_W-1:0] desc_length_minus_one;
    logic [dma_pkg::PERF_CNTR_W-1:0] rd_src_clk_cnt;
    logic [dma_pkg::PERF_CNTR_W-1:0] rd_src_valid_cnt;
    logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] num_rlasts;
@@ -72,6 +73,7 @@ module read_src_fsm #(
    assign rd_src_status.rd_state = state;
    assign rlast_valid = src_mem.rvalid & src_mem.rready & src_mem.r.last;
    assign need_more_rlast = (num_rlasts > (rlast_cnt+rlast_valid));
+   assign desc_length_minus_one = descriptor.length-1;
 
    
    always_ff @(posedge clk) begin
@@ -147,13 +149,12 @@ module read_src_fsm #(
               wr_fifo_if.wr_en   <= 1'b0;
               rd_src_status.busy <= 0;
               src_mem.arvalid    <= 1'b0;
-              num_rlasts         <= descriptor.length[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1;
               rlast_cnt          <= '0;
            end 
            
            next[ADDR_SETUP_BIT]: begin
               rd_src_status.busy <= 1'b1;
-              num_rlasts         <= descriptor.length[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1;
+              num_rlasts          <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_rlasts;
               rd_src_clk_cnt     <= '0;
               rd_src_valid_cnt   <= '0;
               rlast_cnt          <= rlast_cnt + rlast_valid;

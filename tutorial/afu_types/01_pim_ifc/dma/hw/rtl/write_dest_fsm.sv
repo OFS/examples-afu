@@ -99,6 +99,7 @@ module write_dest_fsm #(
    logic need_more_wlast;
    logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] num_wlasts;
    logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] wlast_cnt;
+   logic [dma_pkg::LENGTH_W-1:0] desc_length_minus_one;
    logic [AXI_SIZE_W-1:0] axi_size;
    logic [WLAST_COUNTER_W-1:0] wlast_counter;
    logic [WLAST_COUNTER_W-1:0] wlast_counter_next;
@@ -116,6 +117,7 @@ module write_dest_fsm #(
    assign wr_dest_status.wr_state = state; 
    assign wlast_valid = dest_mem.wvalid & dest_mem.wready & dest_mem.w.last;
    assign need_more_wlast = (num_wlasts > (wlast_cnt + wlast_valid));
+   assign desc_length_minus_one = descriptor.length-1;
    
    always_ff @(posedge clk) begin
       if (!reset_n) state <= IDLE;
@@ -173,13 +175,15 @@ module write_dest_fsm #(
            next[IDLE_BIT]: begin
               wr_dest_status.busy <= 1'b0;
               dest_mem.awvalid    <= 1'b0;
-              //num_wlasts          <= descriptor.length[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1;
+              wlast_counter       <= '0;
            end 
            
            next[ADDR_SETUP_BIT]: begin
               wr_dest_status.busy <= 1'b1;
-              wlast_counter       <= (num_wlasts < (wlast_cnt + wlast_valid)) ? wlast_counter : ((descriptor.length << 6)-1); //length is number 64 byte xfers.  Shift by 6 to get number of total bytes
-              num_wlasts          <= state[IDLE_BIT] ? descriptor.length[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1 : num_wlasts;
+              wlast_counter       <= state[IDLE_BIT] ?  ((descriptor.length << 6)-1) : wlast_counter;
+                                     //((state[RD_FIFO_WR_DEST_BIT] | state[WAIT_FOR_WR_RSP_BIT]) & (num_wlasts > (wlast_cnt + wlast_valid)) & (wlast_counter>14'h3_ffff)) ? wlast_counter : 
+        //(num_wlasts < (wlast_cnt + wlast_valid)) ? wlast_counter : ((descriptor.length << 6)-1); //length is number 64 byte xfers.  Shift by 6 to get number of total bytes
+              num_wlasts          <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
               wr_dest_clk_cnt     <= '0;
               wr_dest_valid_cnt   <= '0;
               dest_mem.awvalid    <= 1'b1;
@@ -217,7 +221,7 @@ module write_dest_fsm #(
 
    always_comb begin
       rd_fifo_if.rd_en                = 1'b0;
-      dest_mem.bready                 = 1'b0;
+      dest_mem.bready                 = 1'b1;
       wr_fsm_done                     = 1'b0;
       wr_dest_status.stopped_on_error = 1'b0;
       wr_dest_status.wr_rsp_err       = 1'b0;
@@ -234,10 +238,9 @@ module write_dest_fsm #(
             rd_fifo_if.rd_en = rd_fifo_if.not_empty & dest_mem.wready;
             dest_mem.wvalid  = rd_fifo_if.not_empty & dest_mem.wready;
             dest_mem.w.data  = rd_fifo_if.rd_data;
-            dest_mem.w.last  = wlast_counter[13:0] <= get_size(axi_size); 
+            dest_mem.w.last  = &(wlast_counter_next[13:0]); 
          end
          state[WAIT_FOR_WR_RSP_BIT]: begin 
-            dest_mem.bready = 1'b1;
             wr_fsm_done     = wr_resp_ok;
          end
          state[ERROR_BIT]:begin 
