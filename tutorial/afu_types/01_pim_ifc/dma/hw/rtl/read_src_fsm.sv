@@ -6,7 +6,7 @@
 
 module read_src_fsm #(
    parameter DATA_W = 512,
-   parameter MAX_TRANSFER_SIZE_BITS = 14
+   parameter MAX_TRANSFER_SIZE_BITS = 17
 )(
    input logic clk,
    input logic reset_n,
@@ -21,7 +21,7 @@ module read_src_fsm #(
 
    localparam AXI_SIZE_W = $bits(src_mem.ar.size);
    localparam AXI_LEN_W = $bits(src_mem.ar.len);
-   localparam ADDR_INCR   = 2048; //FIXME:<<Parameterize this<<
+   localparam ADDR_INCR = 'b1000 << AXI_LEN_W;
    localparam MAX_TRANSFER_IDX = MAX_TRANSFER_SIZE_BITS-1-3;
    localparam MAX_TRANSFER_BYTES = 'b1 << (MAX_TRANSFER_SIZE_BITS - 3); 
    localparam MAX_TRANSFER_LEN = (1'b1<<21)-1; //2M
