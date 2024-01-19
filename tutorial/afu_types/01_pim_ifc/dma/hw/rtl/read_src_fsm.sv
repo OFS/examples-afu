@@ -167,6 +167,7 @@ module read_src_fsm #(
                                                                                           descriptor.length[AXI_LEN_W-1:0]-1;
               src_mem.ar.burst   <= get_burst(descriptor.descriptor_control.mode);
               src_mem.ar.size    <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
+              wr_fifo_if.wr_data <= state[CP_RSP_TO_FIFO_BIT] ? src_mem.r.data : '0;
            end
 
            next[CP_RSP_TO_FIFO_BIT]: begin
