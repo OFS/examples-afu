@@ -41,8 +41,6 @@ package dma_pkg;
     localparam NOT_SUPPORTED = '0;
     localparam ENABLE_ERROR = 1;
 
-
-
     // =========================================================================
     //
     // CSR Indices 
