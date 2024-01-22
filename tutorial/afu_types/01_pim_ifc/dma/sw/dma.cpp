@@ -27,7 +27,7 @@ static uint64_t dma_dfh_offset = -256*1024;
 #define TOTAL_COPY_COMMANDS (s_is_ase_sim ? 1500L : 1000000L)
 #define DMA_BUFFER_SIZE (1024*1024)
 
-#define TEST_BUFFER_SIZE_ASE 64 * 1024
+#define TEST_BUFFER_SIZE_ASE 2048 * 1024
 #define TEST_BUFFER_SIZE_HW 2048 * 1024
 
 #define ON_ERR_GOTO(res, label, desc)  \

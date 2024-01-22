@@ -5,8 +5,7 @@
 
 
 module read_src_fsm #(
-   parameter DATA_W = 512,
-   parameter MAX_TRANSFER_SIZE_BITS = 17
+   parameter DATA_W = 512
 )(
    input logic clk,
    input logic reset_n,
@@ -22,9 +21,6 @@ module read_src_fsm #(
    localparam AXI_SIZE_W = $bits(src_mem.ar.size);
    localparam AXI_LEN_W = $bits(src_mem.ar.len);
    localparam ADDR_INCR = 'b1000000 << AXI_LEN_W;
-   localparam MAX_TRANSFER_IDX = MAX_TRANSFER_SIZE_BITS-1-3;
-   localparam MAX_TRANSFER_BYTES = 'b1 << (MAX_TRANSFER_SIZE_BITS - 3); 
-   localparam MAX_TRANSFER_LEN = (1'b1<<21)-1; //2M
    localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1; //256
 
    `define NUM_RD_STATES 7 
@@ -65,7 +61,6 @@ module read_src_fsm #(
    logic [dma_pkg::PERF_CNTR_W-1:0] rd_src_valid_cnt;
    logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] num_rlasts;
    logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] rlast_cnt;
-   logic final_rlast;
 
    assign rd_src_status.rd_src_perf_cntr.rd_src_clk_cnt   = rd_src_clk_cnt;
    assign rd_src_status.rd_src_perf_cntr.rd_src_valid_cnt =  rd_src_valid_cnt;

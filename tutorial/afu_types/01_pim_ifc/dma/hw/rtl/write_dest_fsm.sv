@@ -5,8 +5,7 @@
 
 
 module write_dest_fsm #(
-   parameter DATA_W = 512,
-   parameter MAX_TRANSFER_SIZE_BITS = 17
+   parameter DATA_W = 512
 )(
    input logic clk,
    input logic reset_n,
@@ -25,8 +24,6 @@ module write_dest_fsm #(
    localparam ADDR_INCR = 'b1000000 << AXI_LEN_W;
    localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1; //256
    localparam ADDR_BYTE_IDX_W = dest_mem.ADDR_BYTE_IDX_WIDTH;
-   localparam MAX_TRANSFER_BYTES = 'b1 << (MAX_TRANSFER_SIZE_BITS - 3); 
-   localparam MAX_TRANSFER_BYTES_W = $clog2(MAX_TRANSFER_BYTES);
 
    `define NUM_WR_STATES 6
 
@@ -89,7 +86,6 @@ module write_dest_fsm #(
    logic [WLAST_COUNTER_W-1:0] wlast_counter_next;
    logic [dma_pkg::PERF_CNTR_W-1:0] wr_dest_clk_cnt;
    logic [dma_pkg::PERF_CNTR_W-1:0] wr_dest_valid_cnt;
-   logic [dma_pkg::DEST_ADDR_W-1:0] wr_dest_addr;
 
    assign wr_dest_status.wr_dest_perf_cntr.wr_dest_clk_cnt = wr_dest_clk_cnt;
    assign wr_dest_status.wr_dest_perf_cntr.wr_dest_valid_cnt = wr_dest_valid_cnt;
@@ -150,7 +146,6 @@ module write_dest_fsm #(
         wr_dest_status.busy <= 1'b0;
         wr_dest_clk_cnt     <= '0;
         wr_dest_valid_cnt   <= '0;
-        wr_dest_addr        <= '0;
         dest_mem.arvalid    <= 1'b0;
         dest_mem.aw         <= '0;
      end else begin
