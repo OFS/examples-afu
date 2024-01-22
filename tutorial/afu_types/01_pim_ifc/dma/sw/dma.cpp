@@ -294,23 +294,23 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
    
    printf ("\nBuffer before HOST to DDR transfer:\n");
    if(verbose) {
-		for(int i = 0; i < test_buffer_word_size; i++) {
-			 if (i%8 == 0) printf("\nbuffer[%d] = ", i);
-			 printf("%016lx",dma_buf_ptr[i]);
-		}
+   	for(int i = 0; i < test_buffer_word_size; i++) {
+   		 if (i%8 == 0) printf("\nbuffer[%d] = ", i);
+   		 printf("%016lx",dma_buf_ptr[i]);
+   	}
    }
    // Basic DMA transfer, Host to DDR
    dma_transfer(accel_handle, host_to_ddr, dma_buf_iova | DMA_HOST_MASK, 0, dma_len, verbose);
 
    // DMA Transfer
-   if(verbose) {
-		printf ("\nBuffer before transfer (should be 0s):\n");
-		memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
-		for(int i = 0; i < test_buffer_word_size; i++) {
-			 if (i%8 == 0) printf("\nbuffer[%d] = ", i);
-			 printf("%016lx",dma_buf_ptr[i]);
-		}
-   }
+ //if(verbose) {
+ //	printf ("\nBuffer before transfer (should be 0s):\n");
+   	memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
+ //	for(int i = 0; i < test_buffer_word_size; i++) {
+ //		 if (i%8 == 0) printf("\nbuffer[%d] = ", i);
+ //		 printf("%016lx",dma_buf_ptr[i]);
+ //	}
+ //}
    // Basic DMA transfer, DDR to Host
    dma_transfer(accel_handle, ddr_to_host, 0, dma_buf_iova | DMA_HOST_MASK, dma_len, verbose);
    

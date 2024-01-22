@@ -154,7 +154,7 @@ module read_src_fsm #(
            
            next[ADDR_SETUP_BIT]: begin
               rd_src_status.busy <= 1'b1;
-              num_rlasts          <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_rlasts;
+              num_rlasts         <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_rlasts;
               rd_src_clk_cnt     <= '0;
               rd_src_valid_cnt   <= '0;
               rlast_cnt          <= rlast_cnt + rlast_valid;
@@ -168,6 +168,7 @@ module read_src_fsm #(
               src_mem.ar.burst   <= get_burst(descriptor.descriptor_control.mode);
               src_mem.ar.size    <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
               wr_fifo_if.wr_data <= state[CP_RSP_TO_FIFO_BIT] ? src_mem.r.data : '0;
+              wr_fifo_if.wr_en   <= state[CP_RSP_TO_FIFO_BIT] & !wr_fifo_if.almost_full & src_mem.rvalid;
            end
 
            next[CP_RSP_TO_FIFO_BIT]: begin

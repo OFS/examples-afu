@@ -50,23 +50,7 @@ module write_dest_fsm #(
    } state, next;
 
 
-   function automatic logic [AXI_LEN_W-1:0] get_wlast_count;
-      input fifo_rd_en;
-      input wlast_valid;
-      input [AXI_LEN_W-1:0] wlast_count_n;
-      input [AXI_LEN_W-1:0] wlast_count;
-   begin
-      case ({fifo_rd_en,wlast_valid})
-         2'b00: return wlast_count;
-         2'b10: return wlast_count_n;
-         2'b01: return wlast_count;
-         2'b11: return '0;
-         default: return wlast_count;
-      endcase
-   end
-   endfunction
-
-   function automatic logic [WLAST_COUNTER_W-1:0] get_size;
+  function automatic logic [WLAST_COUNTER_W-1:0] get_size;
       input [AXI_SIZE_W-1:0] size;
       begin
          case (size)
@@ -103,6 +87,8 @@ module write_dest_fsm #(
    logic [AXI_SIZE_W-1:0] axi_size;
    logic [WLAST_COUNTER_W-1:0] wlast_counter;
    logic [WLAST_COUNTER_W-1:0] wlast_counter_next;
+   logic [WLAST_COUNTER_W-1:0] wlast_counter_zero;
+   logic [WLAST_COUNTER_W-1:0] wlast_counter_zero_next;
    logic [dma_pkg::PERF_CNTR_W-1:0] wr_dest_clk_cnt;
    logic [dma_pkg::PERF_CNTR_W-1:0] wr_dest_valid_cnt;
    logic [dma_pkg::DEST_ADDR_W-1:0] wr_dest_addr;
@@ -113,6 +99,7 @@ module write_dest_fsm #(
    assign wr_resp    = dest_mem.bvalid & dest_mem.bready;
    assign wr_resp_ok = wr_resp & (dest_mem.b.resp==dma_pkg::OKAY);
    assign wlast_counter_next = wlast_counter - get_size(axi_size);
+   assign wlast_counter_zero_next = wlast_counter_zero + get_size(axi_size);
    assign dest_mem.rready = 1'b1;
    assign wr_dest_status.wr_state = state; 
    assign wlast_valid = dest_mem.wvalid & dest_mem.wready & dest_mem.w.last;
@@ -161,6 +148,7 @@ module write_dest_fsm #(
   always_ff @(posedge clk) begin
      if (!reset_n) begin
         wlast_counter       <= '0; // used for asserting w.last
+        wlast_counter_zero  <= '0; // used for asserting w.last
         num_wlasts          <= '0;  // used for transactions that require multiple bursts (ie multiple w.lasts)
         wlast_cnt           <= '0;
         wr_dest_status.busy <= 1'b0;
@@ -171,19 +159,25 @@ module write_dest_fsm #(
         dest_mem.aw         <= '0;
      end else begin
         wlast_cnt <= wlast_cnt + wlast_valid;
+        wlast_counter      <= (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_next : wlast_counter;
+        wlast_counter_zero <= (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_zero_next : wlast_counter_zero;
         unique case (1'b1)
            next[IDLE_BIT]: begin
               wr_dest_status.busy <= 1'b0;
               wlast_counter       <= '0;
+              wlast_counter_zero  <= '0;
               num_wlasts          <= state[WAIT_FOR_WR_RSP_BIT] <= '0;
               wlast_cnt           <= '0;
            end 
            
            next[ADDR_SETUP_BIT]: begin
               wr_dest_status.busy <= 1'b1;
-              wlast_counter       <= state[IDLE_BIT]                                 ? ((descriptor.length << 6)-1) : 
-                                     (state[RD_FIFO_WR_DEST_BIT] & rd_fifo_if.rd_en) ? wlast_counter_next : 
-                                                                                       wlast_counter;
+              wlast_counter       <= state[IDLE_BIT]                                            ? ((descriptor.length << 6)-1) : 
+                                     (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_next :
+                                                        wlast_counter;
+              wlast_counter_zero       <= (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_zero_next :
+                                                        wlast_counter_zero;
+            
               num_wlasts          <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
               wr_dest_clk_cnt     <= '0;
               wr_dest_valid_cnt   <= '0;
@@ -201,13 +195,11 @@ module write_dest_fsm #(
            end
 
            next[RD_FIFO_WR_DEST_BIT]: begin
-                wlast_counter     <= rd_fifo_if.rd_en ? wlast_counter_next : wlast_counter; 
                 wr_dest_clk_cnt   <= wr_dest_clk_cnt + 1;
                 wr_dest_valid_cnt <= wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin
-              wlast_counter    <= wlast_counter;
            end
 
            next[ERROR_BIT]: begin end
@@ -239,6 +231,7 @@ module write_dest_fsm #(
          state[FIFO_EMPTY_BIT]:begin end
          state[RD_FIFO_WR_DEST_BIT]: begin 
             rd_fifo_if.rd_en = rd_fifo_if.not_empty & dest_mem.wready;
+                  
             dest_mem.wvalid  = rd_fifo_if.not_empty & dest_mem.wready;
             dest_mem.w.data  = rd_fifo_if.rd_data;
             dest_mem.w.last  = &(wlast_counter_next[13:0]); 
