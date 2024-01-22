@@ -20,8 +20,8 @@ module read_src_fsm #(
 
    localparam AXI_SIZE_W = $bits(src_mem.ar.size);
    localparam AXI_LEN_W = $bits(src_mem.ar.len);
-   localparam ADDR_INCR = 'b1000000 << AXI_LEN_W;
-   localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1; //256
+   localparam ADDR_INCR = AXI_MM_DATA_W_BYTES << AXI_LEN_W;
+   localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1;
 
    `define NUM_RD_STATES 7 
 
