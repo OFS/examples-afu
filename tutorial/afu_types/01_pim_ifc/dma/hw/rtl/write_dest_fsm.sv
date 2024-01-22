@@ -22,7 +22,7 @@ module write_dest_fsm #(
    localparam WLAST_COUNTER_W = dest_mem.ADDR_BYTE_IDX_WIDTH + dma_pkg::LENGTH_W;
    localparam AXI_SIZE_W = $bits(dest_mem.aw.size);
    localparam AXI_LEN_W = $bits(dest_mem.aw.len);
-   localparam ADDR_INCR = 'b1000 << AXI_LEN_W;
+   localparam ADDR_INCR = 'b1000000 << AXI_LEN_W;
    localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1; //256
    localparam ADDR_BYTE_IDX_W = dest_mem.ADDR_BYTE_IDX_WIDTH;
    localparam MAX_TRANSFER_BYTES = 'b1 << (MAX_TRANSFER_SIZE_BITS - 3); 

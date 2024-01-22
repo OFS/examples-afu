@@ -327,7 +327,7 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
 		printf("\nERROR: memcmp failed!\n");
 		num_errors++;
 	} else {
-       printf("\nSuccess!");
+       printf("\nSuccess!\n");
    }
 
    release_buf:
