@@ -146,27 +146,25 @@ module write_dest_fsm #(
          dest_mem.arvalid    <= 1'b0;
          dest_mem.aw         <= '0;
       end else begin
-         wlast_cnt <= wlast_cnt + wlast_valid;
-         wlast_counter <= wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
+         wlast_cnt         <= wlast_cnt + wlast_valid;
+         wlast_counter     <= wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
+         dest_mem.aw.burst <= get_burst(descriptor.descriptor_control.mode);
+         dest_mem.aw.size  <= axi_size;
          unique case (1'b1)
             next[IDLE_BIT]: begin
-               num_wlasts          <= state[WAIT_FOR_WR_RSP_BIT] <= '0;
-               wlast_counter       <= '0;
-               wlast_cnt           <= '0;
+               num_wlasts    <= state[WAIT_FOR_WR_RSP_BIT] <= '0;
+               wlast_counter <= '0;
+               wlast_cnt     <= '0;
             end 
             
             next[ADDR_SETUP_BIT]: begin
-               num_wlasts          <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
-               wlast_counter       <= state[IDLE_BIT] ? 0 : 
-                                                        wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
-               dest_mem.aw.size    <= axi_size;
-               dest_mem.aw.burst   <= get_burst(descriptor.descriptor_control.mode);
-               dest_mem.aw.addr    <= state[IDLE_BIT]            ? descriptor.dest_addr : 
-                                      state[RD_FIFO_WR_DEST_BIT] ? dest_mem.aw.addr + ADDR_INCR :
-                                                                   dest_mem.aw.addr;
-               dest_mem.aw.len     <= (state[IDLE_BIT] & (descriptor.length>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
-                                      (state[RD_FIFO_WR_DEST_BIT] & need_more_wlast)      ? MAX_AXI_LEN :
-                                                                                            descriptor.length[AXI_LEN_W-1:0]-1; 
+               num_wlasts       <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
+               dest_mem.aw.addr <= state[IDLE_BIT]            ? descriptor.dest_addr : 
+                                   state[RD_FIFO_WR_DEST_BIT] ? dest_mem.aw.addr + ADDR_INCR :
+                                                                dest_mem.aw.addr;
+               dest_mem.aw.len  <= (state[IDLE_BIT] & (descriptor.length>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
+                                   (state[RD_FIFO_WR_DEST_BIT] & need_more_wlast)      ? MAX_AXI_LEN :
+                                                                                         descriptor.length[AXI_LEN_W-1:0]-1; 
             end
             
             next[FIFO_EMPTY_BIT]: begin end
