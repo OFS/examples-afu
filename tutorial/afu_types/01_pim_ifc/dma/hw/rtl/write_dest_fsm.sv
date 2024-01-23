@@ -18,11 +18,11 @@ module write_dest_fsm #(
    dma_fifo_if.rd_out  rd_fifo_if
 );
 
-   localparam WLAST_COUNTER_W = dest_mem.ADDR_BYTE_IDX_WIDTH + dma_pkg::LENGTH_W;
+   localparam WLAST_COUNTER_W =  dma_pkg::LENGTH_W;
    localparam AXI_SIZE_W = $bits(dest_mem.aw.size);
    localparam AXI_LEN_W = dma_pkg::AXI_LEN_W;
    localparam ADDR_INCR = dma_pkg::AXI_MM_DATA_W_BYTES * (2**AXI_LEN_W);
-   localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1;
+   localparam [AXI_LEN_W-1:0] MAX_AXI_LEN = '1;
    localparam ADDR_BYTE_IDX_W = dest_mem.ADDR_BYTE_IDX_WIDTH;
 
    `define NUM_WR_STATES 6
@@ -92,7 +92,7 @@ module write_dest_fsm #(
    assign axi_size   = dest_mem.ADDR_BYTE_IDX_WIDTH;
    assign wr_resp    = dest_mem.bvalid & dest_mem.bready;
    assign wr_resp_ok = wr_resp & (dest_mem.b.resp==dma_pkg::OKAY);
-   assign wlast_counter_next = wlast_counter - get_size(axi_size);
+   assign wlast_counter_next = wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
    assign dest_mem.rready = 1'b1;
    assign wr_dest_status.wr_state = state; 
    assign wlast_valid = dest_mem.wvalid & dest_mem.wready & dest_mem.w.last;
@@ -147,19 +147,18 @@ module write_dest_fsm #(
          dest_mem.aw         <= '0;
       end else begin
          wlast_cnt <= wlast_cnt + wlast_valid;
-         wlast_counter      <= (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_next : wlast_counter;
+         wlast_counter <= wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
          unique case (1'b1)
             next[IDLE_BIT]: begin
-               wlast_counter       <= '0;
                num_wlasts          <= state[WAIT_FOR_WR_RSP_BIT] <= '0;
+               wlast_counter       <= '0;
                wlast_cnt           <= '0;
             end 
             
             next[ADDR_SETUP_BIT]: begin
-               wlast_counter       <= state[IDLE_BIT]                                            ? ((descriptor.length << 6)-1) : 
-                                      (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_next :
-                                                                                                   wlast_counter;
                num_wlasts          <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
+               wlast_counter       <= state[IDLE_BIT] ? 0 : 
+                                                        wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
                dest_mem.aw.size    <= axi_size;
                dest_mem.aw.burst   <= get_burst(descriptor.descriptor_control.mode);
                dest_mem.aw.addr    <= state[IDLE_BIT]            ? descriptor.dest_addr : 
@@ -178,8 +177,6 @@ module write_dest_fsm #(
             
             next[ERROR_BIT]: begin end
             
-            default: begin end
-          
          endcase
       end
    end
@@ -209,7 +206,7 @@ module write_dest_fsm #(
                   
             dest_mem.wvalid  = rd_fifo_if.not_empty & dest_mem.wready;
             dest_mem.w.data  = rd_fifo_if.rd_data;
-            dest_mem.w.last  = &(wlast_counter_next[13:0]); 
+            dest_mem.w.last  = ((descriptor.length-1)==wlast_counter) | (wlast_counter==MAX_AXI_LEN); 
          end
          state[WAIT_FOR_WR_RSP_BIT]: begin 
             wr_fsm_done     = wr_resp_ok;
@@ -218,7 +215,6 @@ module write_dest_fsm #(
             wr_dest_status.stopped_on_error = 1'b1;
             wr_dest_status.wr_rsp_err       = 1'b1;
          end
-         default: begin end
       endcase
    end
 
@@ -236,6 +232,8 @@ module write_dest_fsm #(
            end 
            
            next[ADDR_SETUP_BIT]: begin
+              // Only reset the bandwidth calculations when transitioning from IDLE. This 
+              // way we can can read the value after a transfer is complete
               wr_dest_clk_cnt     <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
               wr_dest_valid_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
            end
@@ -251,8 +249,6 @@ module write_dest_fsm #(
 
            next[ERROR_BIT]: begin end
 
-           default: begin end
-          
        endcase
      end
   end

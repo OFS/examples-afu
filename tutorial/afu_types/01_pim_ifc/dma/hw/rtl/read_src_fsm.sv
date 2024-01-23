@@ -193,6 +193,8 @@ module read_src_fsm #(
             end 
            
            next[ADDR_SETUP_BIT]: begin
+              // Only reset the bandwidth calculations when transitioning from IDLE. This 
+              // way we can can read the value after a transfer is complete
               rd_src_clk_cnt   <= state[IDLE_BIT] ? '0 : rd_src_clk_cnt + 1;
               rd_src_valid_cnt <= state[IDLE_BIT] ? '0 : rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
            end
