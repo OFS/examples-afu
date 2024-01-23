@@ -20,8 +20,8 @@ module write_dest_fsm #(
 
    localparam WLAST_COUNTER_W = dest_mem.ADDR_BYTE_IDX_WIDTH + dma_pkg::LENGTH_W;
    localparam AXI_SIZE_W = $bits(dest_mem.aw.size);
-   localparam AXI_LEN_W = $bits(dest_mem.aw.len);
-   localparam ADDR_INCR = AXI_MM_DATA_W_BYTES << AXI_LEN_W;
+   localparam AXI_LEN_W = dma_pkg::AXI_LEN_W;
+   localparam ADDR_INCR = dma_pkg::AXI_MM_DATA_W_BYTES * (2**AXI_LEN_W);
    localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1;
    localparam ADDR_BYTE_IDX_W = dest_mem.ADDR_BYTE_IDX_WIDTH;
 
@@ -128,7 +128,7 @@ module write_dest_fsm #(
          state[WAIT_FOR_WR_RSP_BIT]:
             if (wr_resp_ok && (wlast_cnt < num_wlasts)) next = ADDR_SETUP;
             else if (wr_resp_ok && (wlast_cnt >= num_wlasts)) next = IDLE;
-            else if (ENABLE_ERROR & wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
+            else if (dma_pkg::ENABLE_ERROR & wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
             else next = WAIT_FOR_WR_RSP;
          
          state[ERROR_BIT]:
