@@ -271,7 +271,7 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
    uint64_t *expected_result_word_ptr = (uint64_t *)expected_result;
    for(int i = 0; i < test_buffer_word_size; i++) {
       expected_result_word_ptr[i] = i;
-      printf("expected_result[%d] = %016lx\n", i, expected_result_word_ptr[i]);
+      if (verbose) printf("expected_result[%d] = %016lx\n", i, expected_result_word_ptr[i]);
    }
 
    printf("TEST_BUFFER_SIZE = %d\n", test_buffer_size);
@@ -301,16 +301,17 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
    }
    // Basic DMA transfer, Host to DDR
    dma_transfer(accel_handle, host_to_ddr, dma_buf_iova | DMA_HOST_MASK, 0, dma_len, verbose);
+   print_bandwidth(host_to_ddr);
 
    // DMA Transfer
- //if(verbose) {
- //	printf ("\nBuffer before transfer (should be 0s):\n");
-   	memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
- //	for(int i = 0; i < test_buffer_word_size; i++) {
- //		 if (i%8 == 0) printf("\nbuffer[%d] = ", i);
- //		 printf("%016lx",dma_buf_ptr[i]);
- //	}
- //}
+   memset((void *)dma_buf_ptr,  0x0, DMA_BUFFER_SIZE);
+   if(verbose) {
+   	printf ("\nBuffer before transfer (should be 0s):\n");
+   	for(int i = 0; i < test_buffer_word_size; i++) {
+   		 if (i%8 == 0) printf("\nbuffer[%d] = ", i);
+   		 printf("%016lx",dma_buf_ptr[i]);
+   	}
+   }
    // Basic DMA transfer, DDR to Host
    dma_transfer(accel_handle, ddr_to_host, 0, dma_buf_iova | DMA_HOST_MASK, dma_len, verbose);
    
@@ -321,6 +322,7 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
 			printf("%016lx",dma_buf_ptr[i]);
 		}
    }
+   print_bandwidth(ddr_to_host);
 
    // Check expected result
    if(memcmp((void *)dma_buf_ptr, (void *)expected_result, test_buffer_size) != 0) {

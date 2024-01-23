@@ -138,65 +138,53 @@ module write_dest_fsm #(
        endcase
    end
 
-  always_ff @(posedge clk) begin
-     if (!reset_n) begin
-        wlast_counter       <= '0; // used for asserting w.last
-        num_wlasts          <= '0;  // used for transactions that require multiple bursts (ie multiple w.lasts)
-        wlast_cnt           <= '0;
-        wr_dest_status.busy <= 1'b0;
-        wr_dest_clk_cnt     <= '0;
-        wr_dest_valid_cnt   <= '0;
-        dest_mem.arvalid    <= 1'b0;
-        dest_mem.aw         <= '0;
-     end else begin
-        wlast_cnt <= wlast_cnt + wlast_valid;
-        wlast_counter      <= (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_next : wlast_counter;
-        unique case (1'b1)
-           next[IDLE_BIT]: begin
-              wr_dest_status.busy <= 1'b0;
-              wlast_counter       <= '0;
-              num_wlasts          <= state[WAIT_FOR_WR_RSP_BIT] <= '0;
-              wlast_cnt           <= '0;
-           end 
-           
-           next[ADDR_SETUP_BIT]: begin
-              wr_dest_status.busy <= 1'b1;
-              wlast_counter       <= state[IDLE_BIT]                                            ? ((descriptor.length << 6)-1) : 
-                                     (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_next :
-                                                        wlast_counter;
+   always_ff @(posedge clk) begin
+      if (!reset_n) begin
+         wlast_counter       <= '0; // used for asserting w.last
+         num_wlasts          <= '0; // used for transactions that require multiple bursts (ie multiple w.lasts)
+         wlast_cnt           <= '0;
+         dest_mem.arvalid    <= 1'b0;
+         dest_mem.aw         <= '0;
+      end else begin
+         wlast_cnt <= wlast_cnt + wlast_valid;
+         wlast_counter      <= (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_next : wlast_counter;
+         unique case (1'b1)
+            next[IDLE_BIT]: begin
+               wlast_counter       <= '0;
+               num_wlasts          <= state[WAIT_FOR_WR_RSP_BIT] <= '0;
+               wlast_cnt           <= '0;
+            end 
             
-              num_wlasts          <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
-              wr_dest_clk_cnt     <= '0;
-              wr_dest_valid_cnt   <= '0;
-              dest_mem.aw.size    <= axi_size;
-              dest_mem.aw.burst   <= get_burst(descriptor.descriptor_control.mode);
-              dest_mem.aw.addr    <= state[IDLE_BIT]            ? descriptor.dest_addr : 
-                                     state[RD_FIFO_WR_DEST_BIT] ? dest_mem.aw.addr + ADDR_INCR :
-                                                                  dest_mem.aw.addr;
-              dest_mem.aw.len     <= (state[IDLE_BIT] & (descriptor.length>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
-                                     (state[RD_FIFO_WR_DEST_BIT] & need_more_wlast)      ? MAX_AXI_LEN :
-                                                                                           descriptor.length[AXI_LEN_W-1:0]-1; 
-           end
-
-           next[FIFO_EMPTY_BIT]: begin 
-           end
-
-           next[RD_FIFO_WR_DEST_BIT]: begin
-                wr_dest_clk_cnt   <= wr_dest_clk_cnt + 1;
-                wr_dest_valid_cnt <= wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);
-           end
-           
-           next[WAIT_FOR_WR_RSP_BIT]: begin
-           end
-
-           next[ERROR_BIT]: begin end
-
-           default: begin end
+            next[ADDR_SETUP_BIT]: begin
+               wlast_counter       <= state[IDLE_BIT]                                            ? ((descriptor.length << 6)-1) : 
+                                      (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty) ? wlast_counter_next :
+                                                                                                   wlast_counter;
+               num_wlasts          <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
+               dest_mem.aw.size    <= axi_size;
+               dest_mem.aw.burst   <= get_burst(descriptor.descriptor_control.mode);
+               dest_mem.aw.addr    <= state[IDLE_BIT]            ? descriptor.dest_addr : 
+                                      state[RD_FIFO_WR_DEST_BIT] ? dest_mem.aw.addr + ADDR_INCR :
+                                                                   dest_mem.aw.addr;
+               dest_mem.aw.len     <= (state[IDLE_BIT] & (descriptor.length>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
+                                      (state[RD_FIFO_WR_DEST_BIT] & need_more_wlast)      ? MAX_AXI_LEN :
+                                                                                            descriptor.length[AXI_LEN_W-1:0]-1; 
+            end
+            
+            next[FIFO_EMPTY_BIT]: begin end
+            
+            next[RD_FIFO_WR_DEST_BIT]: begin end
+            
+            next[WAIT_FOR_WR_RSP_BIT]: begin end
+            
+            next[ERROR_BIT]: begin end
+            
+            default: begin end
           
-       endcase
-     end
-  end
+         endcase
+      end
+   end
 
+   // Data & Descriptor FIFO control
    always_comb begin
       rd_fifo_if.rd_en                = 1'b0;
       dest_mem.bready                 = 1'b1;
@@ -234,5 +222,39 @@ module write_dest_fsm #(
       endcase
    end
 
+  // CSR Status Signals 
+  // Bandwidth calculations
+  always_ff @(posedge clk) begin
+     if (!reset_n) begin
+        wr_dest_status.busy <= 1'b0;
+        wr_dest_clk_cnt     <= '0;
+        wr_dest_valid_cnt   <= '0;
+     end else begin
+        unique case (1'b1)
+           next[IDLE_BIT]: begin
+              wr_dest_status.busy <= 1'b0;
+           end 
+           
+           next[ADDR_SETUP_BIT]: begin
+              wr_dest_clk_cnt     <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
+              wr_dest_valid_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
+           end
+
+           next[FIFO_EMPTY_BIT]: begin end
+
+           next[RD_FIFO_WR_DEST_BIT]: begin
+                wr_dest_clk_cnt   <= wr_dest_clk_cnt + 1;
+                wr_dest_valid_cnt <= wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);
+           end
+           
+           next[WAIT_FOR_WR_RSP_BIT]: begin end
+
+           next[ERROR_BIT]: begin end
+
+           default: begin end
+          
+       endcase
+     end
+  end
 
 endmodule

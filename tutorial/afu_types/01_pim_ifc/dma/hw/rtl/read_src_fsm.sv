@@ -23,7 +23,7 @@ module read_src_fsm #(
    localparam ADDR_INCR = AXI_MM_DATA_W_BYTES << AXI_LEN_W;
    localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1;
 
-   `define NUM_RD_STATES 7 
+   `define NUM_RD_STATES 5 
 
    enum {
       IDLE_BIT,
@@ -99,34 +99,8 @@ module read_src_fsm #(
       endcase
    end
 
-  // length 1088 -> 'b100_0100_0000
- // length 1088 -> 'b100_0011_1111
-                    //packet1: 1111_1111
-                    //packet2: 1111_1111
-                    //packet3: 1111_1111
-                    //packet4: 1111_1111
-                    //packet5: 0011_1111 
-//num_rlasts = 5
-//rlast_cnt 0: address=BASE
-//rlast_cnt 1: address=BASE+INCR
-//rlast_cnt 2: address=BASE+INCR
-//rlast_cnt 3: address=BASE+INCR
-//rlast_cnt 4: address=BASE+INCR
-
-
-// length 256 -> 'b0_1111_1111
-//num_rlasts = 1
-
-// length 320 -> 'b1_1000_0000
-//num_rlasts = 2
-
-
-
   always_ff @(posedge clk) begin
      if (!reset_n) begin
-        rd_src_clk_cnt                 <= '0;
-        rd_src_valid_cnt               <= '0;
-        rd_src_status.busy             <= 1'b0;
         num_rlasts                     <= '0;
         rlast_cnt                      <= '0;
         src_mem.arvalid                <= 1'b0;
@@ -134,24 +108,16 @@ module read_src_fsm #(
         src_mem.awvalid                <= 1'b0;
         src_mem.ar                     <= '0;
         wr_fifo_if.wr_en               <= 1'b0;
-        rd_src_status.descriptor_count <= '0;
      end else begin
-
-
-        // output on transition
         unique case (1'b1)
            next[IDLE_BIT]: begin
               wr_fifo_if.wr_en   <= 1'b0;
-              rd_src_status.busy <= 0;
               src_mem.arvalid    <= 1'b0;
               rlast_cnt          <= '0;
            end 
            
            next[ADDR_SETUP_BIT]: begin
-              rd_src_status.busy <= 1'b1;
               num_rlasts         <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_rlasts;
-              rd_src_clk_cnt     <= '0;
-              rd_src_valid_cnt   <= '0;
               rlast_cnt          <= rlast_cnt + rlast_valid;
               src_mem.arvalid    <= 1'b1;
               src_mem.ar.addr    <= state[IDLE_BIT]           ? descriptor.src_addr : 
@@ -167,8 +133,6 @@ module read_src_fsm #(
            end
 
            next[CP_RSP_TO_FIFO_BIT]: begin
-              rd_src_clk_cnt     <= rd_src_clk_cnt + 1;
-              rd_src_valid_cnt   <= rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
               src_mem.arvalid    <= 1'b0;
               wr_fifo_if.wr_en   <= !wr_fifo_if.almost_full & src_mem.rvalid;
               wr_fifo_if.wr_data <= src_mem.r.data;
@@ -178,7 +142,6 @@ module read_src_fsm #(
               rlast_cnt                      <= rlast_cnt + rlast_valid;
               wr_fifo_if.wr_data             <= src_mem.r.data;
               wr_fifo_if.wr_en               <= !wr_fifo_if.almost_full & src_mem.rvalid & src_mem.r.last;
-              rd_src_status.descriptor_count <= rd_src_status.descriptor_count + descriptor_fifo_rdack;
            end
 
            next[ERROR_BIT]: begin end
@@ -187,6 +150,7 @@ module read_src_fsm #(
   end
 
 
+   // Data & Descriptor FIFO control
    always_comb begin
       descriptor_fifo_rdack          = 1'b0;
       src_mem.rready                 = 1'b0;
@@ -202,7 +166,7 @@ module read_src_fsm #(
          end
 
          state[WAIT_FOR_WR_RSP_BIT]: begin 
-              if (wr_fsm_done) descriptor_fifo_rdack = 1'b1;
+            descriptor_fifo_rdack = wr_fsm_done;
          end
 
          state[ERROR_BIT]: begin
@@ -213,5 +177,41 @@ module read_src_fsm #(
       endcase
    end
 
+  // CSR Status Signals 
+  // Bandwidth calculations
+  always_ff @(posedge clk) begin
+     if (!reset_n) begin
+        rd_src_status.busy             <= 1'b0;
+        rd_src_clk_cnt                 <= '0;
+        rd_src_valid_cnt               <= '0;
+        rd_src_status.descriptor_count <= '0;
+     end else begin
+        rd_src_status.busy <= 1'b1;
+        unique case (1'b1)
+            next[IDLE_BIT]: begin
+               rd_src_status.busy <= 1'b0;
+            end 
+           
+           next[ADDR_SETUP_BIT]: begin
+              rd_src_clk_cnt   <= state[IDLE_BIT] ? '0 : rd_src_clk_cnt + 1;
+              rd_src_valid_cnt <= state[IDLE_BIT] ? '0 : rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
+           end
+
+           next[CP_RSP_TO_FIFO_BIT]: begin  
+              rd_src_clk_cnt     <= rd_src_clk_cnt + 1;
+              rd_src_valid_cnt   <= rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
+           end
+           
+           next[WAIT_FOR_WR_RSP_BIT]: begin 
+              rd_src_clk_cnt     <= rd_src_clk_cnt + 1;
+              rd_src_valid_cnt   <= rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
+              rd_src_status.descriptor_count <= rd_src_status.descriptor_count + descriptor_fifo_rdack;
+           end
+
+           next[ERROR_BIT]: begin end
+        endcase
+      
+     end 
+  end
 
 endmodule

@@ -4,8 +4,8 @@
 `include "ofs_plat_if.vh"
 
 package dma_pkg;
-  `define NUM_RD_STATES 6
-  `define NUM_WR_STATES 6
+  `define NUM_RD_FSM_STATES 6
+  `define NUM_WR_FSM_STATES 6
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
   //
   // Parameters
@@ -175,8 +175,8 @@ package dma_pkg;
       logic [35:0]  rsvd_63_30;
       logic [1:0] dma_mode;                                               // 33:32
       logic [$clog2(DMA_DESCRIPTOR_FIFO_DEPTH)-1:0] descriptor_count;     // 31:28
-      logic [`NUM_RD_STATES-1:0] rd_state;                                // 27:22
-      logic [`NUM_WR_STATES-1:0] wr_state;                                // 21:16
+      logic [`NUM_RD_FSM_STATES-1:0] rd_state;                            // 27:22
+      logic [`NUM_WR_FSM_STATES-1:0] wr_state;                            // 21:16
       logic [1:0]  rd_resp_enc;                                           // 15:14
       logic        rd_rsp_err;                                            // 13 
       logic [1:0]  wr_resp_enc;                                           // 12:11
