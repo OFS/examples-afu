@@ -148,8 +148,6 @@ module write_dest_fsm #(
       end else begin
          wlast_cnt         <= wlast_cnt + wlast_valid;
          wlast_counter     <= wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
-         dest_mem.aw.burst <= get_burst(descriptor.descriptor_control.mode);
-         dest_mem.aw.size  <= axi_size;
          unique case (1'b1)
             next[IDLE_BIT]: begin
                num_wlasts    <= state[WAIT_FOR_WR_RSP_BIT] <= '0;
@@ -158,13 +156,16 @@ module write_dest_fsm #(
             end 
             
             next[ADDR_SETUP_BIT]: begin
-               num_wlasts       <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
-               dest_mem.aw.addr <= state[IDLE_BIT]            ? descriptor.dest_addr : 
+               num_wlasts        <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
+               wlast_counter     <= state[IDLE_BIT] ? 0 : wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
+               dest_mem.aw.burst <= get_burst(descriptor.descriptor_control.mode);
+               dest_mem.aw.size  <= axi_size;
+               dest_mem.aw.addr  <= state[IDLE_BIT]            ? descriptor.dest_addr : 
                                    state[RD_FIFO_WR_DEST_BIT] ? dest_mem.aw.addr + ADDR_INCR :
                                                                 dest_mem.aw.addr;
-               dest_mem.aw.len  <= (state[IDLE_BIT] & (descriptor.length>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
-                                   (state[RD_FIFO_WR_DEST_BIT] & need_more_wlast)      ? MAX_AXI_LEN :
-                                                                                         descriptor.length[AXI_LEN_W-1:0]-1; 
+               dest_mem.aw.len   <= (state[IDLE_BIT] & ((descriptor.length-1)>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
+                                    (state[RD_FIFO_WR_DEST_BIT] & need_more_wlast)          ? MAX_AXI_LEN :
+                                                                                             descriptor.length[AXI_LEN_W-1:0]-1; 
             end
             
             next[FIFO_EMPTY_BIT]: begin end
@@ -201,10 +202,9 @@ module write_dest_fsm #(
          state[FIFO_EMPTY_BIT]:begin end
          state[RD_FIFO_WR_DEST_BIT]: begin 
             rd_fifo_if.rd_en = rd_fifo_if.not_empty & dest_mem.wready;
-                  
             dest_mem.wvalid  = rd_fifo_if.not_empty & dest_mem.wready;
             dest_mem.w.data  = rd_fifo_if.rd_data;
-            dest_mem.w.last  = ((descriptor.length-1)==wlast_counter) | (wlast_counter==MAX_AXI_LEN); 
+            dest_mem.w.last  = ((descriptor.length-1)==wlast_counter) | (wlast_counter[AXI_LEN_W-1:0]==MAX_AXI_LEN); 
          end
          state[WAIT_FOR_WR_RSP_BIT]: begin 
             wr_fsm_done     = wr_resp_ok;
