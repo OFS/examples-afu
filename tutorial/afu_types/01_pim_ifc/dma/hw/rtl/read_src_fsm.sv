@@ -20,7 +20,7 @@ module read_src_fsm #(
 
    localparam AXI_LEN_W = dma_pkg::AXI_LEN_W;
    localparam ADDR_INCR = dma_pkg::AXI_MM_DATA_W_BYTES * (2**AXI_LEN_W);
-   localparam [AXI_LEN_W:0] MAX_AXI_LEN = '1;
+   localparam [AXI_LEN_W-1:0] MAX_AXI_LEN = '1;
    localparam AXI_SIZE_W = $bits(src_mem.ar.size);
 
    `define NUM_RD_STATES 5 
@@ -123,8 +123,8 @@ module read_src_fsm #(
               src_mem.ar.addr    <= state[IDLE_BIT]           ? descriptor.src_addr : 
                                     state[CP_RSP_TO_FIFO_BIT] ? src_mem.ar.addr + ADDR_INCR : 
                                                                 src_mem.ar.addr;
-              src_mem.ar.len     <= (state[CP_RSP_TO_FIFO_BIT] & need_more_rlast)       ? MAX_AXI_LEN : 
-                                    (state[IDLE_BIT] & (descriptor.length>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
+              src_mem.ar.len     <= (state[CP_RSP_TO_FIFO_BIT] & need_more_rlast)           ? MAX_AXI_LEN : 
+                                    (state[IDLE_BIT] & ((descriptor.length-1)>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
                                                                                           descriptor.length[AXI_LEN_W-1:0]-1;
               src_mem.ar.burst   <= get_burst(descriptor.descriptor_control.mode);
               src_mem.ar.size    <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
