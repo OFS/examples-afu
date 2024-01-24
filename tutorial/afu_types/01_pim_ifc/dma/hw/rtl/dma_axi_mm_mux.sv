@@ -1,10 +1,7 @@
 
 
-module dma_axi_mm_mux #(
-   parameter NUM_LOCAL_MEM_BANKS = 1
-)(
+module dma_axi_mm_mux (
    input dma_pkg::e_dma_mode mode,
-   //input logic [NUM_LOCAL_MEM_BANKS] ddr_if_sel, // will add when ddr<->ddr transactions are added
    ofs_plat_axi_mem_if.to_source src_mem,
    ofs_plat_axi_mem_if.to_source dest_mem,
    ofs_plat_axi_mem_if.to_sink host_mem,
@@ -121,18 +118,58 @@ module dma_axi_mm_mux #(
       ``dma_mem_dest``.b.resp  = {'0, ``pim_mem_dest``.b.resp}; \
       ``dma_mem_dest``.b.user  = {'0, ``pim_mem_dest``.b.user};
 
+
+  ofs_plat_axi_mem_if #(
+    `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
+  ) host_mem_reg();
+
+  assign host_mem_reg.clk = host_mem.clk;
+  assign host_mem_reg.reset_n = host_mem.reset_n;
+
+  ofs_plat_axi_mem_if_reg #(
+    `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem), 
+    .T_AW_WIDTH($bits(host_mem_reg.aw)),
+    .T_W_WIDTH($bits(host_mem_reg.w)),
+    .T_B_WIDTH($bits(host_mem_reg.b)),
+    .T_AR_WIDTH($bits(host_mem_reg.ar)),
+    .T_R_WIDTH($bits(host_mem_reg.r))
+  ) host_reg (
+    .mem_sink(host_mem),
+    .mem_source(host_mem_reg.to_source)
+  );
+
+  ofs_plat_axi_mem_if #(
+     `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem)
+  ) ddr_mem_reg();
+
+  assign ddr_mem_reg.clk = host_mem.clk;
+  assign ddr_mem_reg.reset_n = host_mem.reset_n;
+
+  ofs_plat_axi_mem_if_reg #(
+    `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem), 
+    .T_AW_WIDTH($bits(ddr_mem_reg.aw)),
+    .T_W_WIDTH($bits(ddr_mem_reg.w)),
+    .T_B_WIDTH($bits(ddr_mem_reg.b)),
+    .T_AR_WIDTH($bits(ddr_mem_reg.ar)),
+    .T_R_WIDTH($bits(ddr_mem_reg.r))
+  ) ddr_reg (
+    .mem_sink(ddr_mem),
+    .mem_source(ddr_mem_reg.to_source)
+  );
+
+
   always_comb begin
      case (mode) 
          dma_pkg::DDR_TO_HOST: begin 
-            `AXI_MM_ASSIGN(src_mem, ddr_mem, dest_mem, host_mem)
+            `AXI_MM_ASSIGN(src_mem, ddr_mem_reg, dest_mem, host_mem_reg)
          end
 
          dma_pkg::HOST_TO_DDR: begin 
-            `AXI_MM_ASSIGN(src_mem, host_mem, dest_mem, ddr_mem)
+            `AXI_MM_ASSIGN(src_mem, host_mem_reg, dest_mem, ddr_mem_reg)
          end
  
          default: begin 
-            `AXI_MM_ASSIGN(src_mem, ddr_mem, dest_mem, host_mem)
+            `AXI_MM_ASSIGN(src_mem, ddr_mem_reg, dest_mem, host_mem_reg)
          end
 
      endcase

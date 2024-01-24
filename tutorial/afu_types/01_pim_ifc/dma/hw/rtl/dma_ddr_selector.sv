@@ -5,15 +5,19 @@ module dma_ddr_selector #(
    parameter ADDR_WIDTH = 2
 )(
    input dma_pkg::t_dma_descriptor descriptor,
-   ofs_plat_axi_mem_if.to_source selected_ddr_mem,
+   ofs_plat_axi_mem_if.to_source_clk selected_ddr_mem,
    ofs_plat_axi_mem_if.to_sink ddr_mem[NUM_LOCAL_MEM_BANKS]
 );
+
+   assign selected_ddr_mem.clk = ddr_mem[0].clk;
+   assign selected_ddr_mem.reset_n = ddr_mem[0].reset_n;
 
    localparam SEL_WIDTH = $clog2(NUM_LOCAL_MEM_BANKS);
    logic [SEL_WIDTH:0] channel_select;
 
    always_comb begin
-     case (descriptor.descriptor_control.mode) 
+      channel_select = 'b0;
+      case (descriptor.descriptor_control.mode) 
          dma_pkg::DDR_TO_HOST: begin 
             channel_select = descriptor.src_addr[ADDR_WIDTH-1 -: SEL_WIDTH];
          end
@@ -21,11 +25,6 @@ module dma_ddr_selector #(
          dma_pkg::HOST_TO_DDR: begin 
             channel_select = descriptor.dest_addr[ADDR_WIDTH-1 -: SEL_WIDTH];
          end
- 
-         default: begin 
-            channel_select = {SEL_WIDTH{1'b1}};
-         end
-
      endcase
   end
   
