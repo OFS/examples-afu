@@ -148,8 +148,7 @@ module dma_top #(
      );
 
     dma_axi_mm_mux #(
-        .NUM_LOCAL_MEM_BANKS (NUM_LOCAL_MEM_BANKS)
-    )(
+    ) dma_axi_mm_mux (
         .mode (dma_descriptor.descriptor_control.mode),
         .src_mem,
         .dest_mem,
