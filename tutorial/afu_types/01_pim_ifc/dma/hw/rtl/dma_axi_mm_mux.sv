@@ -1,4 +1,4 @@
-
+`include "ofs_plat_if.vh"
 
 module dma_axi_mm_mux (
    input dma_pkg::e_dma_mode mode,
@@ -120,39 +120,26 @@ module dma_axi_mm_mux (
 
 
   ofs_plat_axi_mem_if #(
+   //  .LOG_CLASS(ofs_plat_log_pkg::NONE),
     `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
   ) host_mem_reg();
 
   assign host_mem_reg.clk = host_mem.clk;
   assign host_mem_reg.reset_n = host_mem.reset_n;
 
-  ofs_plat_axi_mem_if_reg #(
-    `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem), 
-    .T_AW_WIDTH($bits(host_mem_reg.aw)),
-    .T_W_WIDTH($bits(host_mem_reg.w)),
-    .T_B_WIDTH($bits(host_mem_reg.b)),
-    .T_AR_WIDTH($bits(host_mem_reg.ar)),
-    .T_R_WIDTH($bits(host_mem_reg.r))
-  ) host_reg (
+  ofs_plat_axi_mem_if_reg host_reg (
     .mem_sink(host_mem),
     .mem_source(host_mem_reg.to_source)
   );
 
   ofs_plat_axi_mem_if #(
-     `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem)
+     `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
   ) ddr_mem_reg();
 
   assign ddr_mem_reg.clk = host_mem.clk;
   assign ddr_mem_reg.reset_n = host_mem.reset_n;
 
-  ofs_plat_axi_mem_if_reg #(
-    `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem), 
-    .T_AW_WIDTH($bits(ddr_mem_reg.aw)),
-    .T_W_WIDTH($bits(ddr_mem_reg.w)),
-    .T_B_WIDTH($bits(ddr_mem_reg.b)),
-    .T_AR_WIDTH($bits(ddr_mem_reg.ar)),
-    .T_R_WIDTH($bits(ddr_mem_reg.r))
-  ) ddr_reg (
+  ofs_plat_axi_mem_if_reg  ddr_reg (
     .mem_sink(ddr_mem),
     .mem_source(ddr_mem_reg.to_source)
   );
@@ -174,14 +161,5 @@ module dma_axi_mm_mux (
 
      endcase
   end
-
-
-
-
-
-
-
-
-
 
 endmodule : dma_axi_mm_mux
