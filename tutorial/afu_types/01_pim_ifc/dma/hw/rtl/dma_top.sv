@@ -50,12 +50,13 @@ module dma_top #(
     logic descriptor_fifo_not_empty;
     logic descriptor_fifo_not_full;
 
+    always_ff @(posedge clk) rd_desc_fifo_if.rd_en <= descriptor_fifo_rdack & rd_desc_fifo_if.not_empty;
+
     always_comb begin
        wr_desc_fifo_if.wr_data = dma_csr_map.descriptor;
        wr_desc_fifo_if.wr_en   = dma_csr_map.descriptor.descriptor_control.go;
-     
+       //rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
        dma_descriptor            = rd_desc_fifo_if.rd_data;
-       rd_desc_fifo_if.rd_en     = descriptor_fifo_rdack;
        descriptor_fifo_not_empty = rd_desc_fifo_if.not_empty;
        dma_csr_status                              = 0;
        dma_csr_status.rsvd_63_30                   = 0;
@@ -129,13 +130,12 @@ module dma_top #(
 
 
      ofs_plat_axi_mem_if #(
-        // Copy the configuration from ddr_mem
-        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
+      `LOCAL_MEM_AXI_MEM_PARAMS_DEFAULT
      ) src_mem();
 
     ofs_plat_axi_mem_if #(
       // Copy the configuration from ddr_mem
-      `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
+      `LOCAL_MEM_AXI_MEM_PARAMS_DEFAULT
     ) selected_ddr_mem();
 
     dma_ddr_selector #(

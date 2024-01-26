@@ -96,7 +96,7 @@ package dma_pkg;
     // Put CSR info in its own pkg?
     // Addresses/offsets:
     
-    localparam HOST_ADDR_W = 48;
+    localparam HOST_ADDR_W = 57;
     localparam DDR_ADDR_W = 32;
     localparam SRC_ADDR_W = (HOST_ADDR_W > DDR_ADDR_W) ? HOST_ADDR_W : DDR_ADDR_W; //choose the larger address width so we support both directions
     localparam DEST_ADDR_W = SRC_ADDR_W;
