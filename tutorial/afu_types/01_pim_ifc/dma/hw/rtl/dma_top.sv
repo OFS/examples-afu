@@ -127,15 +127,12 @@ module dma_top #(
         `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
     ) dest_mem();
 
-
-     ofs_plat_axi_mem_if #(
-        // Copy the configuration from ddr_mem
-        `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
-     ) src_mem();
-
     ofs_plat_axi_mem_if #(
-      // Copy the configuration from ddr_mem
-      `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem[0])
+        `LOCAL_MEM_AXI_MEM_PARAMS_DEFAULT
+    ) src_mem();
+ 
+    ofs_plat_axi_mem_if #(
+        `LOCAL_MEM_AXI_MEM_PARAMS_DEFAULT
     ) selected_ddr_mem();
 
     dma_ddr_selector #(
