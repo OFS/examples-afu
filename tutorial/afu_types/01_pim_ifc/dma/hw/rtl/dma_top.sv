@@ -149,6 +149,8 @@ module dma_top #(
 
     dma_axi_mm_mux #(
     ) dma_axi_mm_mux (
+        .clk,
+        .reset_n,
         .mode (dma_descriptor.descriptor_control.mode),
         .src_mem,
         .dest_mem,
