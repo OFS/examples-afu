@@ -192,18 +192,31 @@ module dma_axi_mm_mux (
 
   `AXI_REG_ASSIGN(dest_mem, dest_mem_m)
 
+
+  ofs_plat_axi_mem_if #(
+    `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem)
+  ) ddr_mem_s();
+
+  `AXI_REG_ASSIGN(ddr_mem_s, ddr_mem)
+
+  ofs_plat_axi_mem_if #(
+    `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
+  ) host_mem_s();
+
+  `AXI_REG_ASSIGN(host_mem_s, host_mem)
+
   always_comb begin
      case (mode) 
          dma_pkg::DDR_TO_HOST: begin 
-            `AXI_MM_ASSIGN(src_mem_m, ddr_mem, dest_mem_m, host_mem)
+            `AXI_MM_ASSIGN(src_mem_m, ddr_mem_s, dest_mem_m, host_mem_s)
          end
 
          dma_pkg::HOST_TO_DDR: begin 
-            `AXI_MM_ASSIGN(src_mem_m, host_mem, dest_mem_m, ddr_mem)
+            `AXI_MM_ASSIGN(src_mem_m, host_mem_s, dest_mem_m, ddr_mem_s)
          end
  
          default: begin 
-            `AXI_MM_ASSIGN(src_mem_m, ddr_mem, dest_mem_m, host_mem)
+            `AXI_MM_ASSIGN(src_mem_m, ddr_mem_s, dest_mem_m, host_mem_s)
          end
 
      endcase

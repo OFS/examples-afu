@@ -119,14 +119,18 @@ module write_dest_fsm #(
        endcase
    end
 
+   logic [2:0] awaddr_prop_delay;
+
    always_ff @(posedge clk) begin
       if (!reset_n) begin
          wlast_counter       <= '0; // used for asserting w.last
          num_wlasts          <= '0; // used for transactions that require multiple bursts (ie multiple w.lasts)
          wlast_cnt           <= '0;
+         awaddr_prop_delay   <= '0;
          dest_mem.arvalid    <= 1'b0;
          dest_mem.aw         <= '0;
       end else begin
+         awaddr_prop_delay <= '0;
          wlast_cnt         <= wlast_cnt + wlast_valid;
          wlast_counter     <= wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
          unique case (1'b1)
@@ -137,6 +141,7 @@ module write_dest_fsm #(
             end 
             
             next[ADDR_SETUP_BIT]: begin
+               awaddr_prop_delay <= awaddr_prop_delay + 1;
                num_wlasts        <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
                wlast_counter     <= state[IDLE_BIT] ? 0 : wlast_counter + (dest_mem.wvalid & dest_mem.wready & rd_fifo_if.not_empty);
                dest_mem.aw.burst <= get_burst(descriptor.descriptor_control.mode);
@@ -177,7 +182,7 @@ module write_dest_fsm #(
       unique case (1'b1)
          state[IDLE_BIT]: begin end
          state[ADDR_SETUP_BIT]:begin
-            dest_mem.awvalid = dest_mem.awready;
+            dest_mem.awvalid = dest_mem.awready & awaddr_prop_delay[2];
             dest_mem.w.data  = rd_fifo_if.rd_data;
          end
          state[FIFO_EMPTY_BIT]:begin end

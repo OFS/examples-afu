@@ -23,10 +23,11 @@ module read_src_fsm #(
    localparam [AXI_LEN_W-1:0] MAX_AXI_LEN = '1;
    localparam AXI_SIZE_W = $bits(src_mem.ar.size);
 
-   `define NUM_RD_STATES 5 
+   `define NUM_RD_STATES 6 
 
    enum {
       IDLE_BIT,
+      ADDR_PROP_DELAY_BIT,
       ADDR_SETUP_BIT,
       CP_RSP_TO_FIFO_BIT,
       WAIT_FOR_WR_RSP_BIT,
@@ -35,6 +36,7 @@ module read_src_fsm #(
 
    enum logic [`NUM_RD_STATES-1:0] {
       IDLE            = `NUM_RD_STATES'b1<<IDLE_BIT,
+      ADDR_PROP_DELAY = `NUM_RD_STATES'b1<<ADDR_PROP_DELAY_BIT,
       ADDR_SETUP      = `NUM_RD_STATES'b1<<ADDR_SETUP_BIT,
       CP_RSP_TO_FIFO  = `NUM_RD_STATES'b1<<CP_RSP_TO_FIFO_BIT,
       WAIT_FOR_WR_RSP = `NUM_RD_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
@@ -56,11 +58,13 @@ module read_src_fsm #(
     endfunction
 
    logic rlast_valid;
+   logic [DEST_ADDR_W-1:0] saved_araddr;
+   logic [2:0] awaddr_prop_delay;
    logic [dma_pkg::LENGTH_W-1:0] desc_length_minus_one;
    logic [dma_pkg::PERF_CNTR_W-1:0] rd_src_clk_cnt;
    logic [dma_pkg::PERF_CNTR_W-1:0] rd_src_valid_cnt;
-   logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] num_rlasts;
-   logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] rlast_cnt;
+   logic [AXI_LEN_W:0] num_rlasts;
+   logic [AXI_LEN_W:0] rlast_cnt;
 
    assign rd_src_status.rd_src_perf_cntr.rd_src_clk_cnt   = rd_src_clk_cnt;
    assign rd_src_status.rd_src_perf_cntr.rd_src_valid_cnt =  rd_src_valid_cnt;
@@ -84,13 +88,17 @@ module read_src_fsm #(
           else next = IDLE;
         end 
 
+        state[ADDR_PROP_DELAY_BIT]:
+            if (awaddr_prop_delay[2]) next = ADDR_SETUP;
+            else next = ADDR_PROP_DELAY;
+
          state[ADDR_SETUP_BIT]:
             if (src_mem.arvalid & src_mem.arready) next = CP_RSP_TO_FIFO;
             else next = ADDR_SETUP;
 
          state[CP_RSP_TO_FIFO_BIT]:
             if (rlast_valid & (num_rlasts == (rlast_cnt+1))) next = WAIT_FOR_WR_RSP;
-            else if (rlast_valid & need_more_rlast) next = ADDR_SETUP;
+            else if (rlast_valid & need_more_rlast) next = ADDR_PROP_DELAY;
             else next = CP_RSP_TO_FIFO;
 
          state[WAIT_FOR_WR_RSP_BIT]:
@@ -108,38 +116,46 @@ module read_src_fsm #(
         src_mem.awvalid                <= 1'b0;
         src_mem.ar                     <= '0;
         wr_fifo_if.wr_en               <= 1'b0;
+        awaddr_prop_delay <= '0;
+        saved_araddr      <= '0;
      end else begin
+        awaddr_prop_delay <= '0;
+        rlast_cnt          <= rlast_cnt + rlast_valid;
         unique case (1'b1)
            next[IDLE_BIT]: begin
               wr_fifo_if.wr_en   <= 1'b0;
               src_mem.arvalid    <= 1'b0;
               rlast_cnt          <= '0;
            end 
+
+           next[ADDR_PROP_DELAY_BIT]: begin
+               awaddr_prop_delay <= awaddr_prop_delay + 1;
+               src_mem.ar.addr   <= saved_araddr + ADDR_INCR;
+               wr_fifo_if.wr_data <= state[CP_RSP_TO_FIFO_BIT] ? src_mem.r.data : '0;
+               wr_fifo_if.wr_en   <= state[CP_RSP_TO_FIFO_BIT] & !wr_fifo_if.almost_full & src_mem.rvalid;
+           end
            
            next[ADDR_SETUP_BIT]: begin
               num_rlasts         <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_rlasts;
-              rlast_cnt          <= rlast_cnt + rlast_valid;
               src_mem.arvalid    <= 1'b1;
-              src_mem.ar.addr    <= state[IDLE_BIT]           ? descriptor.src_addr : 
-                                    state[CP_RSP_TO_FIFO_BIT] ? src_mem.ar.addr + ADDR_INCR : 
-                                                                src_mem.ar.addr;
+              src_mem.ar.addr    <= state[IDLE_BIT]           ? descriptor.src_addr : src_mem.ar.addr;
+                                    //state[CP_RSP_TO_FIFO_BIT] ? src_mem.ar.addr + ADDR_INCR : 
+                                                                //src_mem.ar.addr;
               src_mem.ar.len     <= (state[CP_RSP_TO_FIFO_BIT] & need_more_rlast)           ? MAX_AXI_LEN : 
                                     (state[IDLE_BIT] & ((descriptor.length-1)>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
                                                                                           descriptor.length[AXI_LEN_W-1:0]-1;
               src_mem.ar.burst   <= get_burst(descriptor.descriptor_control.mode);
               src_mem.ar.size    <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
-              wr_fifo_if.wr_data <= state[CP_RSP_TO_FIFO_BIT] ? src_mem.r.data : '0;
-              wr_fifo_if.wr_en   <= state[CP_RSP_TO_FIFO_BIT] & !wr_fifo_if.almost_full & src_mem.rvalid;
            end
 
            next[CP_RSP_TO_FIFO_BIT]: begin
               src_mem.arvalid    <= 1'b0;
               wr_fifo_if.wr_en   <= !wr_fifo_if.almost_full & src_mem.rvalid;
               wr_fifo_if.wr_data <= src_mem.r.data;
+              saved_araddr       <= src_mem.ar.addr;
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin
-              rlast_cnt                      <= rlast_cnt + rlast_valid;
               wr_fifo_if.wr_data             <= src_mem.r.data;
               wr_fifo_if.wr_en               <= !wr_fifo_if.almost_full & src_mem.rvalid & src_mem.r.last;
            end
