@@ -12,7 +12,6 @@ package dma_pkg;
   //
   // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  localparam PERF_CNTR_W = 32;
   localparam DMA_DATA_FIFO_DEPTH = 32;
   localparam DMA_DESCRIPTOR_FIFO_DEPTH = 16;
   localparam DMA_DESCRIPTOR_FIFO_DEPTH_ENCODED = 
@@ -106,6 +105,7 @@ package dma_pkg;
     localparam AXI_MM_DATA_W_BYTES = AXI_MM_DATA_W / 8;
     localparam DDR_DATA_W = AXI_MM_DATA_W;
     localparam HOST_DATA_W = AXI_MM_DATA_W;
+    localparam PERF_CNTR_W = LENGTH_W;
 
 
     typedef enum logic [1:0] {
