@@ -50,12 +50,12 @@ module dma_top #(
     logic descriptor_fifo_not_empty;
     logic descriptor_fifo_not_full;
 
-    always_ff @(posedge clk) rd_desc_fifo_if.rd_en <= descriptor_fifo_rdack & rd_desc_fifo_if.not_empty;
+    //always_ff @(posedge clk) rd_desc_fifo_if.rd_en <= descriptor_fifo_rdack & rd_desc_fifo_if.not_empty;
 
     always_comb begin
        wr_desc_fifo_if.wr_data = dma_csr_map.descriptor;
        wr_desc_fifo_if.wr_en   = dma_csr_map.descriptor.descriptor_control.go;
-       //rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
+       rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
        dma_descriptor            = rd_desc_fifo_if.rd_data;
        descriptor_fifo_not_empty = rd_desc_fifo_if.not_empty;
        dma_csr_status                              = 0;

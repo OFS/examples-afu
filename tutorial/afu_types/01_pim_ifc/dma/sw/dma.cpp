@@ -84,9 +84,9 @@ void print_bandwidth(e_dma_mode descriptor_mode) {
     uint64_t wr_dest_bw;
     // Gather Read statistics and calculate bandwidth 
     const uint64_t rd_src_perf_cntr = readMMIO64(DMA_CSR_IDX_RD_SRC_PERF_CNTR);
-    rd_src_valid_cnt = rd_src_perf_cntr & 0xFFFFFFFF; //keep lower 32 bits
-    rd_src_clk_cnt = rd_src_perf_cntr>>32;            //Keeper upper 32 bits
-    rd_src_clk_cnt &= 0xFFFFFFFF;
+    rd_src_valid_cnt = rd_src_perf_cntr & 0xFFFFF; //keep lower 20 bits
+    rd_src_clk_cnt = rd_src_perf_cntr>>20;         //Keep upper 20 bits
+    rd_src_clk_cnt &= 0xFFFFF;
     const double read_uptime = (rd_src_valid_cnt*1.0) / (rd_src_clk_cnt*1.0);
     if (descriptor_mode == ddr_to_host) {
         printf("\nAFU Read ");
@@ -97,9 +97,9 @@ void print_bandwidth(e_dma_mode descriptor_mode) {
 
     // Gather Write statistics and calculate bandwidth 
     const uint64_t wr_dest_perf_cntr = readMMIO64(DMA_CSR_IDX_WR_DEST_PERF_CNTR);
-    wr_dest_valid_cnt = wr_dest_perf_cntr & 0xFFFFFFFF;
-    wr_dest_clk_cnt = wr_dest_perf_cntr>>32;
-    wr_dest_clk_cnt &= 0xFFFFFFFF;
+    wr_dest_valid_cnt = wr_dest_perf_cntr & 0xFFFFF;
+    wr_dest_clk_cnt = wr_dest_perf_cntr>>20;
+    wr_dest_clk_cnt &= 0xFFFFF;
     const double write_uptime = (wr_dest_valid_cnt*1.0) / (wr_dest_clk_cnt*1.0);
     if (descriptor_mode == ddr_to_host) {
         printf("Host to AFU ");

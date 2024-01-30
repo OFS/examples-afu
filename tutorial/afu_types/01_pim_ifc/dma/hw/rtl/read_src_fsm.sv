@@ -221,8 +221,8 @@ module read_src_fsm #(
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin 
-              rd_src_clk_cnt     <= rd_src_clk_cnt + 1;
-              rd_src_valid_cnt   <= rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
+              //rd_src_clk_cnt     <= rd_src_clk_cnt + 1;
+              //rd_src_valid_cnt   <= rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
               rd_src_status.descriptor_count <= rd_src_status.descriptor_count + descriptor_fifo_rdack;
            end
 
