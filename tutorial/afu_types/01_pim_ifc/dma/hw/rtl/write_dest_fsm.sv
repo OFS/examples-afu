@@ -66,11 +66,11 @@ module write_dest_fsm #(
    logic [dma_pkg::LENGTH_W-1:0] desc_length_minus_one;
    logic [AXI_SIZE_W-1:0] axi_size;
    logic [AXI_LEN_W:0] wlast_counter;
-   logic [dma_pkg::PERF_CNTR_W-1:0] wr_dest_clk_cnt;
-   logic [dma_pkg::PERF_CNTR_W-1:0] wr_dest_valid_cnt;
+   logic [dma_pkg::LENGTH_W-1:0] wr_dest_clk_cnt;
+   logic [dma_pkg::LENGTH_W-1:0] wr_dest_valid_cnt;
 
-   assign wr_dest_status.wr_dest_perf_cntr.wr_dest_clk_cnt = wr_dest_clk_cnt;
-   assign wr_dest_status.wr_dest_perf_cntr.wr_dest_valid_cnt = wr_dest_valid_cnt;
+   assign wr_dest_status.wr_dest_perf_cntr.wr_dest_clk_cnt = {12'b0, wr_dest_clk_cnt};
+   assign wr_dest_status.wr_dest_perf_cntr.wr_dest_valid_cnt = {12'b0, wr_dest_valid_cnt};
    assign axi_size   = dest_mem.ADDR_BYTE_IDX_WIDTH;
    assign wr_resp    = dest_mem.bvalid & dest_mem.bready;
    assign wr_resp_ok = wr_resp & (dest_mem.b.resp==dma_pkg::OKAY);

@@ -57,13 +57,13 @@ module read_src_fsm #(
 
    logic rlast_valid;
    logic [dma_pkg::LENGTH_W-1:0] desc_length_minus_one;
-   logic [dma_pkg::PERF_CNTR_W-1:0] rd_src_clk_cnt;
-   logic [dma_pkg::PERF_CNTR_W-1:0] rd_src_valid_cnt;
+   logic [dma_pkg::LENGTH_W-1:0] rd_src_clk_cnt;
+   logic [dma_pkg::LENGTH_W-1:0] rd_src_valid_cnt;
    logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] num_rlasts;
    logic [dma_pkg::LENGTH_W-AXI_LEN_W-1:0] rlast_cnt;
 
-   assign rd_src_status.rd_src_perf_cntr.rd_src_clk_cnt   = rd_src_clk_cnt;
-   assign rd_src_status.rd_src_perf_cntr.rd_src_valid_cnt =  rd_src_valid_cnt;
+   assign rd_src_status.rd_src_perf_cntr.rd_src_clk_cnt   = {'0,rd_src_clk_cnt};
+   assign rd_src_status.rd_src_perf_cntr.rd_src_valid_cnt = {'0,rd_src_valid_cnt};
    assign src_mem.bready = 1'b0;
    assign rd_src_status.rd_state = state;
    assign rlast_valid = src_mem.rvalid & src_mem.rready & src_mem.r.last;
