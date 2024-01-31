@@ -50,12 +50,12 @@ module dma_top #(
     logic descriptor_fifo_not_empty;
     logic descriptor_fifo_not_full;
 
-    always_ff @(posedge clk) rd_desc_fifo_if.rd_en <= descriptor_fifo_rdack & rd_desc_fifo_if.not_empty;
+    //always_ff @(posedge clk) rd_desc_fifo_if.rd_en <= descriptor_fifo_rdack & rd_desc_fifo_if.not_empty;
 
     always_comb begin
        wr_desc_fifo_if.wr_data = dma_csr_map.descriptor;
        wr_desc_fifo_if.wr_en   = dma_csr_map.descriptor.descriptor_control.go;
-       //rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
+       rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
        dma_descriptor            = rd_desc_fifo_if.rd_data;
        descriptor_fifo_not_empty = rd_desc_fifo_if.not_empty;
        dma_csr_status                              = 0;
@@ -128,8 +128,7 @@ module dma_top #(
         `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
     ) dest_mem();
 
-
-     ofs_plat_axi_mem_if #(
+    ofs_plat_axi_mem_if #(
       `LOCAL_MEM_AXI_MEM_PARAMS_DEFAULT
      ) src_mem();
 
@@ -149,6 +148,8 @@ module dma_top #(
 
     dma_axi_mm_mux #(
     ) dma_axi_mm_mux (
+        .clk,
+        .reset_n,
         .mode (dma_descriptor.descriptor_control.mode),
         .src_mem,
         .dest_mem,
