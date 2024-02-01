@@ -10,6 +10,9 @@
 #include <assert.h>
 #include <getopt.h>
 #include <uuid/uuid.h>
+#include <stdbool.h>
+#include <math.h>
+#include <ctype.h>
 
 #include <opae/fpga.h>
 
@@ -20,6 +23,7 @@
 
 static uint32_t transfer_size = 8192;
 static bool verbose = false;
+static bool transfer_size_set = false;
 
 
 //
@@ -34,17 +38,56 @@ help(void)
            "                     [--verbose<>]\n"
            "                     \n"
            "\n"
-           "      -h,--help             Print this help\n"
+           "      -h,--help                   Print this help\n"
            "\n"
-           "      -s,--transfer-size    Size, in bytes, of data to move with each dma.\n"
-           "                            transfer. (Default: 8KB)\n"
-           "      -v,--verbose          Verbose.  Shows debug messages and prints out source \n"
-           "                            before the transfer and destination buffer after\n"
-           "                            the transfer\n"
-           "                            overhead decreases as this value increases, since\n"
-           "                            multiple completions are signaled with a single\n"
-           "                            operation.\n"
+           "      -s,--transfer-size-bytes    Size, in bytes, of data to move with each dma.\n"
+           "                                  transfer. (Default: 8KB)\n"
+           "      -c,--transfer-size-lines    Size, in lines, of data to move with each dma.\n"
+           "                                  transfer. (Default: 128)\n"
+           "      -v,--verbose                Verbose.  Shows debug messages and prints out source \n"
+           "                                  before the transfer and destination buffer after\n"
+           "                                  the transfer\n"
+           "                                  overhead decreases as this value increases, since\n"
+           "                                  multiple completions are signaled with a single\n"
+           "                                  operation.\n"
            "\n");
+}
+
+//
+// Helper function for setting transfer size
+//
+double evaluate_expression(const char *expr) {
+    if (expr[0] == '0' && (expr[1] == 'x' || expr[1] == 'X')) {
+        return strtod(expr, NULL);
+    }
+
+    char *endptr;
+    double result = strtod(expr, &endptr);
+
+    if (*endptr == '\0') {
+        return result;
+    } else {
+        char op = *endptr++;
+        double operand2 = strtod(endptr, &endptr);
+
+        if (*endptr != '\0') {
+            return -1;
+        }
+
+        switch (op) {
+            case '+': return result + operand2;
+            case '-': return result - operand2;
+            case '*': return result * operand2;
+            case '/': 
+                if (operand2 == 0) {
+                    return -1;
+                }
+                return result / operand2;
+            case '^': return pow(result, operand2);
+            default: 
+                return -1;
+        }
+    }
 }
 
 
@@ -56,9 +99,10 @@ static int
 parse_args(int argc, char *argv[])
 {
     struct option longopts[] = {
-        {"help",            no_argument,       NULL, 'h'},
-        {"transfer-size",   required_argument, NULL, 's'},
-        {"verbose",         no_argument,       NULL, 'v'},
+        {"help", no_argument, NULL, 'h'},
+        {"transfer-size-bytes", required_argument, NULL, 's'},
+        {"transfer-size-cache", required_argument, NULL, 'c'},
+        {"verbose", no_argument, NULL, 'v'},
         {0, 0, 0, 0}
     };
 
@@ -80,11 +124,30 @@ parse_args(int argc, char *argv[])
             help();
             return -1;
 
-        case 's': /* transfer-size */
-            endptr = NULL;
-            transfer_size = (uint32_t)strtoul(tmp_optarg, &endptr, 0);
-            if ((endptr != tmp_optarg + strlen(tmp_optarg)) || (transfer_size == 0)) {
-                fprintf(stderr, "Invalid transfer size: %s\n", tmp_optarg);
+        case 's': /* transfer-size-bytes */
+            if (transfer_size_set) {
+                fprintf(stderr, "Cannot specify both --transfer-size-bytes and --transfer-size-cache\n");
+                return -1;
+            }
+            transfer_size = (uint32_t)evaluate_expression(tmp_optarg);
+            // transfer_size =  (uint32_t)strtoul(tmp_optarg, &endptr, 0);
+            transfer_size_set = true;
+            if (transfer_size < 0) {
+                fprintf(stderr, "Invalid expression in --transfer-size-bytes\n");
+                return -1;
+            }
+            break;
+
+        case 'c': /* transfer-size-cache */
+            if (transfer_size_set) {
+                fprintf(stderr, "Cannot specify both --transfer-size-bytes and --transfer-size-cache\n");
+                return -1;
+            }
+            transfer_size = (uint32_t)evaluate_expression(tmp_optarg) * DMA_LINE_SIZE;
+            // transfer_size =  (uint32_t)strtoul(tmp_optarg, &endptr, 0) * DMA_LINE_SIZE;
+            transfer_size_set = true;
+            if (transfer_size < 0) {
+                fprintf(stderr, "Invalid expression in --transfer-size-lines\n");
                 return -1;
             }
             break;
