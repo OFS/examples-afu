@@ -21,10 +21,10 @@ $(AFU_JSON_INFO): ../hw/rtl/$(TEST).json | objdir
 $(OBJS): $(AFU_JSON_INFO)
 
 $(TEST): $(OBJS)
-	$(CC) -o $@ $^ $(LDFLAGS) $(FPGA_LIBS) -lrt -pthread
+	$(CC) -o $@ $^ $(LDFLAGS) $(FPGA_LIBS) -lrt -pthread -lm
 
 $(OBJDIR)/%.o: %.cpp | objdir
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=700 -c $< -o $@ 
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=700 -c $< -o $@
 
 clean:
 	rm -rf $(TEST) $(OBJDIR)

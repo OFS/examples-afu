@@ -34,7 +34,6 @@
 #define DMA_HOST_MASK		0x2000000000000
 // #define DMA_HOST_MASK		0x0000000000000
 
-
 #define DMA_BURST_SIZE_BYTES 8*8
 #define DMA_BURST_SIZE_WORDS 8
 
@@ -53,6 +52,8 @@
 #define DMA_FPGA_NUM_ADDR_BITS 32
 #define DMA_FPGA_MEM_BUS_WIDTH 512
 #define DMA_FPGA_MEM_ALIGNMENT 0x1FF
+
+#define DMA_LINE_SIZE 64
 
 int run_basic_ddr_dma_test(fpga_handle afc_handle);
 
