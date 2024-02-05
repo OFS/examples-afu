@@ -101,7 +101,7 @@ parse_args(int argc, char *argv[])
     struct option longopts[] = {
         {"help", no_argument, NULL, 'h'},
         {"transfer-size-bytes", required_argument, NULL, 's'},
-        {"transfer-size-cache", required_argument, NULL, 'c'},
+        {"transfer-size-lines", required_argument, NULL, 'c'},
         {"verbose", no_argument, NULL, 'v'},
         {0, 0, 0, 0}
     };
