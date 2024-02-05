@@ -30,6 +30,10 @@ module dma_top #(
     assign clk = host_mem.clk;
     logic reset_n;
     assign reset_n = host_mem.reset_n;
+    assign src_mem.clk = clk; 
+    assign src_mem.reset_n = reset_n; 
+    assign dest_mem.clk = clk; 
+    assign dest_mem.reset_n = reset_n; 
 
     // ====================================================================
     //
@@ -49,8 +53,6 @@ module dma_top #(
     logic descriptor_fifo_rdack;
     logic descriptor_fifo_not_empty;
     logic descriptor_fifo_not_full;
-
-    //always_ff @(posedge clk) rd_desc_fifo_if.rd_en <= descriptor_fifo_rdack & rd_desc_fifo_if.not_empty;
 
     always_comb begin
        wr_desc_fifo_if.wr_data = dma_csr_map.descriptor;
