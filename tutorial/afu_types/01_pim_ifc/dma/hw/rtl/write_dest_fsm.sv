@@ -112,20 +112,17 @@ module write_dest_fsm #(
          
          state[FIFO_EMPTY_BIT]:
             if (!rd_fifo_if.not_empty) next = FIFO_EMPTY;
-            else if (!dest_mem.wready) next = NOT_READY;
-            else next = RD_FIFO_WR_DEST;
+            else next = NOT_READY;
 
          state[NOT_READY_BIT]:
             if (!dest_mem.wready) next = NOT_READY;
-            else if (!rd_fifo_if.not_empty) next = FIFO_EMPTY;
             else next = RD_FIFO_WR_DEST;
 
 
          state[RD_FIFO_WR_DEST_BIT]:
             if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
             else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
-            else if (!rd_fifo_if.not_empty) next = FIFO_EMPTY;
-            else if (!dest_mem.wready) next = NOT_READY;
+            else if ((!rd_fifo_if.not_empty) | (!dest_mem.wready)) next = FIFO_EMPTY;
             else next = RD_FIFO_WR_DEST;
 
          state[WAIT_FOR_WR_RSP_BIT]:
@@ -263,14 +260,18 @@ module write_dest_fsm #(
            end
 
            next[FIFO_EMPTY_BIT]: begin 
-              //dest_mem.w.data <= dest_mem.w.data;
-              //dest_mem.wvalid <= dest_mem.wvalid; 
+              dest_mem.w.data <= (state[RD_FIFO_WR_DEST_BIT] & rd_fifo_if.not_empty)   ? dest_mem.w.data    : 
+                                 (dest_mem.wvalid & dest_mem.wready)                   ? rd_fifo_if.rd_data : 
+                                                                                         dest_mem.w.data;
+
+              dest_mem.wvalid <= (state[RD_FIFO_WR_DEST_BIT] & rd_fifo_if.not_empty) ? 1'b1 : 
+                                 (dest_mem.wvalid & dest_mem.wready)                 ? 1'b0 : 
+                                                                                       dest_mem.wvalid; 
            end
           
            next[NOT_READY_BIT]: begin
-              dest_mem.w.data <= state[FIFO_EMPTY_BIT] ? rd_fifo_if.rd_data : dest_mem.w.data;
-              //dest_mem.wvalid <= state[FIFO_EMPTY_BIT] ? 1'b1               : dest_mem.wvalid; 
-              dest_mem.wvalid <= dest_mem.wvalid; 
+              dest_mem.w.data <= (dest_mem.wready & dest_mem.wvalid) ? rd_fifo_if.rd_data : dest_mem.w.data;
+              dest_mem.wvalid <= (dest_mem.wready & dest_mem.wvalid) ? 1'b0 : dest_mem.wvalid; 
            end
 
            next[RD_FIFO_WR_DEST_BIT]: begin
