@@ -61,14 +61,6 @@ module dma_axi_mm_mux (
       `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(dest_mem)
    ) dest_mem_q();
 
- //ofs_plat_axi_mem_if #(
- //   `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem)
- //) ddr_mem_d();
-
- //ofs_plat_axi_mem_if #(
- //   `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
- //) host_mem_d();
-
    assign src_mem_q.clk = host_mem.clk;
    assign src_mem_q.reset_n = host_mem.reset_n;
    assign dest_mem_q.clk = host_mem.clk;
@@ -97,30 +89,6 @@ module dma_axi_mm_mux (
       .mem_sink   (dest_mem_q.to_sink), 
       .mem_source (dest_mem)  
    );
-
- //ofs_plat_axi_mem_if_reg #(
- //    `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(ddr_mem),
- //    .T_AW_WIDTH      ($bits(ddr_mem.aw    )), 
- //    .T_W_WIDTH       ($bits(ddr_mem.w     )), 
- //    .T_B_WIDTH       ($bits(ddr_mem.b     )), 
- //    .T_AR_WIDTH      ($bits(ddr_mem.ar    )), 
- //    .T_R_WIDTH       ($bits(ddr_mem.r     ))  
- // ) ddr_mem_reg_inst ( 
- //    .mem_sink   (ddr_mem), 
- //    .mem_source (ddr_mem_d.to_source)  
- // );
-
- //ofs_plat_axi_mem_if_reg #(
- //   `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem),
- //   .T_AW_WIDTH      ($bits(host_mem.aw    )), 
- //   .T_W_WIDTH       ($bits(host_mem.w     )), 
- //   .T_B_WIDTH       ($bits(host_mem.b     )), 
- //   .T_AR_WIDTH      ($bits(host_mem.ar    )), 
- //   .T_R_WIDTH       ($bits(host_mem.r     ))  
- //) host_mem_reg_inst ( 
- //   .mem_sink   (host_mem), 
- //   .mem_source (host_mem_d.to_source)  
- //);
 
    always_comb begin
       case (mode) 

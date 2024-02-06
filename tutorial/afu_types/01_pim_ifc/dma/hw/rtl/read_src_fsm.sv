@@ -177,6 +177,8 @@ module read_src_fsm #(
 
          state[ADDR_SETUP_BIT]: begin end
 
+         state[ADDR_PROP_DELAY_BIT]: begin end
+
          state[CP_RSP_TO_FIFO_BIT]: begin 
             src_mem.rready = !wr_fifo_if.almost_full;
          end
@@ -195,6 +197,8 @@ module read_src_fsm #(
 
   // CSR Status Signals 
   // Bandwidth calculations
+
+
   always_ff @(posedge clk) begin
      if (!reset_n) begin
         rd_src_status.busy             <= 1'b0;
@@ -207,6 +211,7 @@ module read_src_fsm #(
             next[IDLE_BIT]: begin
                rd_src_status.busy <= 1'b0;
             end 
+           next[ADDR_PROP_DELAY_BIT]: begin end
            
            next[ADDR_SETUP_BIT]: begin
               // Only reset the bandwidth calculations when transitioning from IDLE. This 
@@ -218,11 +223,10 @@ module read_src_fsm #(
            next[CP_RSP_TO_FIFO_BIT]: begin  
               rd_src_clk_cnt     <= rd_src_clk_cnt + 1;
               rd_src_valid_cnt   <= rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
+          
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin 
-              //rd_src_clk_cnt     <= rd_src_clk_cnt + 1;
-              //rd_src_valid_cnt   <= rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
               rd_src_status.descriptor_count <= rd_src_status.descriptor_count + descriptor_fifo_rdack;
            end
 
@@ -232,4 +236,30 @@ module read_src_fsm #(
      end 
   end
 
+  
+  // synthesis translate_off
+  integer rd_src_axi_file;
+  integer rd_src_fifo_file;
+
+  initial begin 
+     rd_src_axi_file = $fopen("rd_src_axi.txt","a");
+     rd_src_fifo_file = $fopen("rd_src_fifo.txt","a");
+
+     forever begin
+           fork 
+              begin
+                  @(posedge clk);
+                  if (wr_fifo_if.wr_en) 
+                     $fwrite(rd_src_fifo_file, "0x%0h: 0x%0h\n", descriptor.descriptor_control.mode,wr_fifo_if.wr_data);
+              end
+              begin
+                  @(posedge clk);
+                  if (src_mem.rvalid & src_mem.rready) 
+                     $fwrite(rd_src_axi_file, "0x%0h: 0x%0h\n", descriptor.descriptor_control.mode,src_mem.r.data);
+              end
+           join
+     end
+  end
+  // synthesis translate_on
+ 
 endmodule

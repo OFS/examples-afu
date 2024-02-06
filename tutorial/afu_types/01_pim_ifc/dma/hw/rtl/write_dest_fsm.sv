@@ -87,6 +87,7 @@ module write_dest_fsm #(
    assign wlast_valid = dest_mem.wvalid & dest_mem.wready & dest_mem.w.last;
    assign need_more_wlast = (num_wlasts > (wlast_cnt + wlast_valid));
    assign desc_length_minus_one = descriptor.length-1;
+  assign wlast_counter_next = wlast_counter + (dest_mem.wvalid & dest_mem.wready);
    
    always_ff @(posedge clk) begin
       if (!reset_n) state <= IDLE;
@@ -174,6 +175,8 @@ module write_dest_fsm #(
                                     (state[FIFO_EMPTY_BIT] & need_more_wlast)                 ? MAX_AXI_LEN :
                                                                                                 descriptor.length[AXI_LEN_W-1:0]-1; 
             end
+
+            next[NOT_READY_BIT]: begin end
             
             next[FIFO_EMPTY_BIT]: begin 
                saved_awaddr  <= dest_mem.aw.addr[(dma_pkg::DEST_ADDR_W)-1:ADDR_INCR_W];
@@ -222,9 +225,8 @@ module write_dest_fsm #(
       endcase
    end
 
-  // CSR Status Signals 
+ // CSR Status Signals 
   // Bandwidth calculations
-  assign wlast_counter_next = wlast_counter + (dest_mem.wvalid & dest_mem.wready);
   always_ff @(posedge clk) begin
      if (!reset_n) begin
         wr_dest_status.busy <= 1'b0;
@@ -246,7 +248,6 @@ module write_dest_fsm #(
         dest_mem.w.last     <= dest_mem.wready & (desc_length_minus_one==wlast_counter_next) | (wlast_counter_next[AXI_LEN_W-1:0]==MAX_AXI_LEN); 
         unique case (1'b1)
            next[IDLE_BIT]: begin
-              wlast_counter    <= '0;
               wr_dest_status.busy <= 1'b0;
               wr_dest_clk_cnt     <= wr_dest_clk_cnt;
               wr_dest_valid_cnt   <= wr_dest_valid_cnt;
@@ -256,23 +257,25 @@ module write_dest_fsm #(
            next[ADDR_SETUP_BIT]: begin
               // Only reset the bandwidth calculations when transitioning from IDLE. This 
               // way we can can read the value after a transfer is complete
+              wlast_counter       <= state[ADDR_PROP_DELAY_BIT] ? '0 : wlast_counter_next;
               wr_dest_clk_cnt     <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
               wr_dest_valid_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
            end
 
            next[FIFO_EMPTY_BIT]: begin 
+              //dest_mem.w.data <= dest_mem.w.data;
+              //dest_mem.wvalid <= dest_mem.wvalid; 
            end
           
            next[NOT_READY_BIT]: begin
-              dest_mem.w.data <= dest_mem.w.data;
+              dest_mem.w.data <= state[FIFO_EMPTY_BIT] ? rd_fifo_if.rd_data : dest_mem.w.data;
+              //dest_mem.wvalid <= state[FIFO_EMPTY_BIT] ? 1'b1               : dest_mem.wvalid; 
               dest_mem.wvalid <= dest_mem.wvalid; 
            end
 
            next[RD_FIFO_WR_DEST_BIT]: begin
-                //wlast_counter     <= wlast_counter + (rd_fifo_if.rd_en & state[RD_FIFO_WR_DEST_BIT]);
-                dest_mem.w.data <= rd_fifo_if.rd_data;
-                dest_mem.wvalid <= rd_fifo_if.rd_en;
-                //dest_mem.w.last <= dest_mem.wready & (desc_length_minus_one==wlast_counter) | (wlast_counter[AXI_LEN_W-1:0]==MAX_AXI_LEN); 
+             dest_mem.w.data <= rd_fifo_if.rd_data;
+             dest_mem.wvalid <= rd_fifo_if.rd_en;
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin end
@@ -282,5 +285,31 @@ module write_dest_fsm #(
        endcase
      end
   end
+  
+  // synthesis translate_off
+  integer wr_dest_fifo_file;
+  integer wr_dest_axi_file;
 
+  initial begin 
+     wr_dest_axi_file = $fopen("wr_dest_axi.txt","a");
+     wr_dest_fifo_file = $fopen("wr_dest_fifo.txt","a");
+     forever begin
+        begin
+           fork 
+              begin
+                 @(posedge clk);
+                 if (dest_mem.wvalid & dest_mem.wready) 
+                    $fwrite(wr_dest_axi_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, dest_mem.w.data);
+              end
+              begin
+                 @(posedge clk);
+                 if (rd_fifo_if.rd_en) 
+                    $fwrite(wr_dest_fifo_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, rd_fifo_if.rd_data);
+              end
+           join
+        end
+     end 
+  end
+  // synthesis translate_on
+ 
 endmodule
