@@ -72,8 +72,8 @@ module write_dest_fsm #(
    logic [AXI_LEN_W:0] wlast_cnt;
    logic [dma_pkg::LENGTH_W-1:0] desc_length_minus_one;
    logic [AXI_SIZE_W-1:0] axi_size;
-   logic [AXI_LEN_W:0] wlast_counter;
-   logic [AXI_LEN_W:0] wlast_counter_next;
+   logic [dma_pkg::LENGTH_W-1:0] wlast_counter;
+   logic [dma_pkg::LENGTH_W-1:0] wlast_counter_next;
    logic [dma_pkg::LENGTH_W-1:0] wr_dest_clk_cnt;
    logic [dma_pkg::LENGTH_W-1:0] wr_dest_valid_cnt;
 
@@ -87,7 +87,7 @@ module write_dest_fsm #(
    assign wlast_valid = dest_mem.wvalid & dest_mem.wready & dest_mem.w.last;
    assign need_more_wlast = (num_wlasts > (wlast_cnt + wlast_valid));
    assign desc_length_minus_one = descriptor.length-1;
-  assign wlast_counter_next = wlast_counter + (dest_mem.wvalid & dest_mem.wready);
+   assign wlast_counter_next = wlast_counter + (dest_mem.wvalid & dest_mem.wready);
    
    always_ff @(posedge clk) begin
       if (!reset_n) state <= IDLE;
@@ -111,11 +111,15 @@ module write_dest_fsm #(
            else next = ADDR_SETUP;
          
          state[FIFO_EMPTY_BIT]:
-            if (!rd_fifo_if.not_empty) next = FIFO_EMPTY;
+            if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
+            else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
+            else if (!rd_fifo_if.not_empty) next = FIFO_EMPTY;
             else next = NOT_READY;
 
          state[NOT_READY_BIT]:
-            if (!dest_mem.wready) next = NOT_READY;
+            if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
+            else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
+            else if (!dest_mem.wready) next = NOT_READY;
             else next = RD_FIFO_WR_DEST;
 
 
@@ -248,13 +252,14 @@ module write_dest_fsm #(
               wr_dest_status.busy <= 1'b0;
               wr_dest_clk_cnt     <= wr_dest_clk_cnt;
               wr_dest_valid_cnt   <= wr_dest_valid_cnt;
+              wlast_counter       <= '0;
            end 
            next[ADDR_PROP_DELAY_BIT]: begin end
            
            next[ADDR_SETUP_BIT]: begin
               // Only reset the bandwidth calculations when transitioning from IDLE. This 
               // way we can can read the value after a transfer is complete
-              wlast_counter       <= state[ADDR_PROP_DELAY_BIT] ? '0 : wlast_counter_next;
+              //wlast_counter       <= state[ADDR_PROP_DELAY_BIT] ? '0 : wlast_counter_next;
               wr_dest_clk_cnt     <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
               wr_dest_valid_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
            end
