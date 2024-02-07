@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <poll.h>
 #include <pthread.h>
+#include <time.h>
 
 //#include <iostream>
 //using namespace std;
@@ -38,6 +39,8 @@ static uint64_t dma_dfh_offset = -256*1024;
          goto label;                   \
       }                                \
    } while (0)
+
+#define BW_GIGA 1000000
 
 void print_err(const char *s, fpga_result res) {
    fprintf(stderr, "Error %s: %s\n", s, fpgaErrStr(res));
@@ -194,6 +197,10 @@ void send_descriptor(fpga_handle accel_handle, uint64_t mmio_dst, dma_descriptor
 }
 
 void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t dev_src, uint64_t dev_dest, int len, bool verbose) {
+   // Performance tracking variables
+   clock_t start, end;
+   double sw_bandwidth;
+
    fpga_result     res = FPGA_OK;
    
    //dma requires 64 byte alignment
@@ -228,6 +235,7 @@ void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t dev_src, u
    }
 
    //send descriptor
+   start = clock();
    send_descriptor(accel_handle, DMA_DESC_BASE, desc);
    
    mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
@@ -241,9 +249,13 @@ void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t dev_src, u
          mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
       #endif
    }
+   end = clock();
+   sw_bandwidth = ((double) (len * DMA_LINE_SIZE)) / (BW_GIGA * ((double) (end - start)) / CLOCKS_PER_SEC);
+   printf("Transfer Bandwidth: %4.5fGB/s\n", sw_bandwidth);
 }
 
 int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool verbose) {
+
    // Shared buffer in host memory 
    volatile uint64_t *dma_buf_ptr  = NULL;
    // Workspace ID used by OPAE to identify buffer
