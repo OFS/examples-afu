@@ -109,7 +109,7 @@ void print_bandwidth(e_dma_mode descriptor_mode) {
     } else {
         printf("DDR to AFU ");
     }
-    printf("Write BW = %f GB/S\n", write_uptime * MAX_TRPT_BYTES / 1000.0);
+    printf("Write BW = %f GB/S\n\n", write_uptime * MAX_TRPT_BYTES / 1000.0);
  
 }
 
@@ -251,7 +251,7 @@ void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t dev_src, u
    }
    end = clock();
    sw_bandwidth = ((double) (len * DMA_LINE_SIZE)) / (BW_GIGA * ((double) (end - start)) / CLOCKS_PER_SEC);
-   printf("Transfer Bandwidth: %4.5fGB/s\n", sw_bandwidth);
+   printf("\nApparent Transfer Bandwidth: %4.5fGB/s", sw_bandwidth);
 }
 
 int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool verbose) {
