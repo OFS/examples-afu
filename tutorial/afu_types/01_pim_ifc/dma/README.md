@@ -47,8 +47,10 @@ The software demonstrates a the same OPAE capabilities as previous examples to i
 # --transfer-size-bytes: Initiating a DMA transfer with bytes 
 #                        Minimum = 64 
 #                        Maximum = 2097152
-./dma --transfer-size-bytes=<64-2097152>
+./dma --transfer-size-bytes=16384
 ```
 
-ages requirement for this test:
+Both examples show how to initiate a 16kB DMA transfer.  The first one is in terms of lines (256 64B lines = 16kB).  The second one explicitely sets teh number of bytes.
+
+Huge pages requirement for this test:
   - More than 32, 2MB huge pages need to be setup
