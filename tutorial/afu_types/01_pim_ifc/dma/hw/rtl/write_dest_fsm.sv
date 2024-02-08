@@ -98,12 +98,13 @@ module write_dest_fsm #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: begin 
-           if (descriptor.descriptor_control.go & descriptor_fifo_not_empty & dest_mem.awready)next = ADDR_SETUP;
+           if (descriptor.descriptor_control.go & descriptor_fifo_not_empty & dest_mem.awready & rd_fifo_if.not_empty)next = ADDR_SETUP;
            else next = IDLE;
          end 
 
         state[ADDR_PROP_DELAY_BIT]:
             if (awaddr_prop_delay[2]) next = ADDR_SETUP;
+            else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
             else next = ADDR_PROP_DELAY;
 
          state[ADDR_SETUP_BIT]:
@@ -130,7 +131,7 @@ module write_dest_fsm #(
             else next = RD_FIFO_WR_DEST;
 
          state[WAIT_FOR_WR_RSP_BIT]:
-            if (wr_resp_ok && (wlast_cnt >= num_wlasts)) next = IDLE;
+            if (wlast_cnt >= num_wlasts) next = IDLE;
             else if (dma_pkg::ENABLE_ERROR & wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
             else next = WAIT_FOR_WR_RSP;
          
@@ -217,7 +218,8 @@ module write_dest_fsm #(
             rd_fifo_if.rd_en = rd_fifo_if.not_empty & dest_mem.wready;
          end
          state[WAIT_FOR_WR_RSP_BIT]: begin 
-            wr_fsm_done     = wr_resp_ok;
+            //wr_fsm_done     = wr_resp_ok;
+            wr_fsm_done     = 1'b1;
          end
          state[ERROR_BIT]:begin 
             wr_dest_status.stopped_on_error = 1'b1;
@@ -254,14 +256,19 @@ module write_dest_fsm #(
               wr_dest_valid_cnt   <= wr_dest_valid_cnt;
               wlast_counter       <= '0;
            end 
-           next[ADDR_PROP_DELAY_BIT]: begin end
+           next[ADDR_PROP_DELAY_BIT]: begin 
+              dest_mem.w.data   <= rd_fifo_if.rd_data;
+              dest_mem.wvalid   <= rd_fifo_if.rd_en | (dest_mem.wvalid & (!dest_mem.wready)); 
+           end
            
            next[ADDR_SETUP_BIT]: begin
               // Only reset the bandwidth calculations when transitioning from IDLE. This 
               // way we can can read the value after a transfer is complete
               //wlast_counter       <= state[ADDR_PROP_DELAY_BIT] ? '0 : wlast_counter_next;
-              wr_dest_clk_cnt     <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
-              wr_dest_valid_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
+              wr_dest_clk_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
+              wr_dest_valid_cnt <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
+              dest_mem.w.data   <= (dest_mem.wready & dest_mem.wvalid) ? rd_fifo_if.rd_data : dest_mem.w.data;
+              dest_mem.wvalid   <= (dest_mem.wready & dest_mem.wvalid) ? 1'b0 : dest_mem.wvalid; 
            end
 
            next[FIFO_EMPTY_BIT]: begin 
