@@ -10,9 +10,6 @@ write_dest_fsm.sv
 dma_engine.sv
 dma_axi_mm_mux.sv
 dma_ddr_selector.sv
-$OFS_ROOTDIR/ofs-common/src/common/lib/axi/axi_register.sv
-$OFS_ROOTDIR/ofs-common/src/common/lib/axi/axi_read_register.sv
-$OFS_ROOTDIR/ofs-common/src/common/lib/axi/axi_write_register.sv
 
 # Pointer to software:
 # sw:../../sw/dma.cpp
