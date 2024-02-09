@@ -28,6 +28,7 @@ module dma_axi_mm_mux (
    localparam SIMPLE_BUFFER = 1;
    localparam BYPASS = 2;
 
+   // This macro swaps the ready and valid signals for the AXI-MM interfaces
    `define AXI_MEM_IF_COPY_READY(dma_mem_src, pim_mem_src, dma_mem_dest, pim_mem_dest) \
       ``pim_mem_src``.arvalid    = ``dma_mem_src``.arvalid; \
       ``dma_mem_src``.arready    = ``pim_mem_src``.arready; \
@@ -51,7 +52,13 @@ module dma_axi_mm_mux (
       ``pim_mem_dest``.bready  = ``dma_mem_dest``.bready; \
       ``dma_mem_dest``.bvalid  = ``pim_mem_dest``.bvalid; \
 
-
+   //  ------------------------------------------------
+   //  Simplified AXI Interconnect/Crossbar Multiplexer Macro
+   //  ------------------------------------------------
+   //  This Verilog macro implements a simplified AXI interconnect, also known as a crossbar multiplexer,
+   //  designed to route transactions between multiple AXI masters and slaves based on the mode provided
+   //  in the descriptor. It supports basic AXI
+   //  transactions, including read and write operations.
    `define AXI_MM_ASSIGN(dma_mem_src, pim_mem_src, dma_mem_dest, pim_mem_dest) \
       `AXI_MEM_IF_COPY_READY(dma_mem_src, pim_mem_src, dma_mem_dest, pim_mem_dest) \
       \
@@ -80,6 +87,8 @@ module dma_axi_mm_mux (
    assign dest_mem_q.clk = host_mem.clk;
    assign dest_mem_q.reset_n = host_mem.reset_n;
 
+   // In order to reduce the critical path to the DMA engine, we must add an AXI 
+   // register slice at the boundary.
    ofs_plat_axi_mem_if_reg_impl #(
      `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(src_mem),
      .T_AW_WIDTH      ($bits(src_mem_q.aw    )), 
@@ -104,6 +113,10 @@ module dma_axi_mm_mux (
       .mem_source (dest_mem)  
    );
 
+   // Instatiate a mux using the previous macros to act as a crossbar/multiplexor
+   // the first 2 arguments route the DMA source AXI signals to the AXI signals at 
+   // the top level.  The next 2 arguments route the DMA destination to the 
+   // AXI desired AXI MM bus at the top level.
    always_comb begin
       case (mode) 
          dma_pkg::DDR_TO_HOST: begin 
