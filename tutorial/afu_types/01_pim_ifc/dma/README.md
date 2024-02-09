@@ -35,7 +35,7 @@ DMA Top Level RTL Source Files:
 - [dma\_pkg.sv](hw/rtl/dma_pkg.sv) is a package file used for keeping all of the data structures and parameters for the DMA Core
 
 ## Software Application
-The software demonstrates a the same OPAE capabilities as previous examples to initiate a DMA transaction.  
+The software demonstrates the same OPAE capabilities as previous examples to initiate a DMA transaction.  
 
 ```bash
 # --transfer-size-lines: Initiating a DMA transfer with 64 Byte cache lines

@@ -1,3 +1,17 @@
+// Copyright (C) 2022 Intel Corporation
+// SPDX-License-Identifier: MIT
+
+// dma_axi_mm_mux responsible for controlling which top-level AXI-MM interface acts 
+// as the source and destination for each DMA transaction. It consumes four unique 
+// AXI-MM interfaces: 
+//    - src_mem: AXI-MM interface bus used for issuing read requests to the source 
+//      memory (Host or DDR) specified by the descriptor control field 
+//      (descriptor.descriptor\_control.mode).
+//    - dest_mem: AXI-MM interface bus used for writing AXI bursts to the 
+//      destination memory (Host or DDR) specified by the descriptor control field
+//      (descriptor.descriptor\_control.mode). 
+//    - ddr_mem: AXI-MM interface connected to the PIM local memory (DDR)
+//    - host_mem: AXI-MM interface connected to the PIM host memory through the FIU 
 
 `include "ofs_plat_if.vh"
 
@@ -10,9 +24,9 @@ module dma_axi_mm_mux (
    ofs_plat_axi_mem_if.to_sink host_mem,
    ofs_plat_axi_mem_if.to_sink ddr_mem
 );
-	localparam SKID_BUFFER = 0;
-	localparam SIMPLE_BUFFER = 1;
-	localparam BYPASS = 2;
+   localparam SKID_BUFFER = 0;
+   localparam SIMPLE_BUFFER = 1;
+   localparam BYPASS = 2;
 
    `define AXI_MEM_IF_COPY_READY(dma_mem_src, pim_mem_src, dma_mem_dest, pim_mem_dest) \
       ``pim_mem_src``.arvalid    = ``dma_mem_src``.arvalid; \

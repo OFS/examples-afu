@@ -1,6 +1,8 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: MIT
 
+// This is a package file used for keeping all of the data structures and 
+// parameters for the DMA Core
 `include "ofs_plat_if.vh"
 
 package dma_pkg;

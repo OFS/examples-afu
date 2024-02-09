@@ -6,12 +6,11 @@
 // import dma_pkg::*;
 
 //
-// Copy engine top-level. Take in a pair of AXI-MM interfaces, one for CSRs and
+// DMA top-level. Take in a pair of AXI-MM interfaces, one for CSRs and
 // one for reading and writing host memory.
 //
 // This engine can be instantiated either from a full-PIM system using
-// ofs_plat_afu() or from a hybrid design in which the PIM host channel
-// mapping is created by the AFU.
+// ofs_plat_afu()
 //
 
 module dma_top #(
@@ -38,7 +37,7 @@ module dma_top #(
     // ====================================================================
     //
     // CSR (MMIO) manager. Handle all MMIO reads and writes from the host
-    // and output copy commands.
+    // and share the CSR Map with the DMA Engine and AXI interconnect.
     //
     // ====================================================================
 
@@ -55,11 +54,11 @@ module dma_top #(
     logic descriptor_fifo_not_full;
 
     always_comb begin
-       wr_desc_fifo_if.wr_data = dma_csr_map.descriptor;
-       wr_desc_fifo_if.wr_en   = dma_csr_map.descriptor.descriptor_control.go;
-       rd_desc_fifo_if.rd_en = descriptor_fifo_rdack;
-       dma_descriptor            = rd_desc_fifo_if.rd_data;
-       descriptor_fifo_not_empty = rd_desc_fifo_if.not_empty;
+       wr_desc_fifo_if.wr_data                     = dma_csr_map.descriptor;
+       wr_desc_fifo_if.wr_en                       = dma_csr_map.descriptor.descriptor_control.go;
+       rd_desc_fifo_if.rd_en                       = descriptor_fifo_rdack;
+       dma_descriptor                              = rd_desc_fifo_if.rd_data;
+       descriptor_fifo_not_empty                   = rd_desc_fifo_if.not_empty;
        dma_csr_status                              = 0;
        dma_csr_status.rsvd_63_30                   = 0;
        dma_csr_status.dma_mode                     = dma_descriptor.descriptor_control.mode;
@@ -117,14 +116,10 @@ module dma_top #(
 
     // ====================================================================
     //
-    // Read engine
+    // Simplified AXI Interconnect  
     //
     // ====================================================================
 
-    // Declare a copy of the host memory read interface. The read ports
-    // will be connected to the read engine and the write ports unused.
-    // This will split the read channels from the write channels but keep
-    // a single interface type.  Do this for each host/ddr read/write
     ofs_plat_axi_mem_if #(
         // Copy the configuration from host_mem
         `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(host_mem)
@@ -158,6 +153,11 @@ module dma_top #(
         .host_mem,
         .ddr_mem(selected_ddr_mem)
     );
+    // ====================================================================
+    //
+    // DMA Engine  
+    //
+    // ====================================================================
    
     dma_engine #(
     ) dma_engine_inst (

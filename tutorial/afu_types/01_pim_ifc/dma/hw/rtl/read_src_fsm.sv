@@ -1,8 +1,14 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: MIT
 
-`include "ofs_plat_if.vh"
+// read_src_fsm is a finite state machine responsible for using the source address 
+// and length fields of the descriptor to issue a read request over AXI-MM.  
+// Since the max burst size specified by the AXI is 256 (16kB), it will issue 16kB 
+// read request bursts until the data size requirement is met.  It then copies the 
+// data to a data FIFO so that it may be forwarded to the destination by the write 
+// engine.  
 
+`include "ofs_plat_if.vh"
 
 module read_src_fsm #(
    parameter DATA_W = 512
@@ -80,6 +86,7 @@ module read_src_fsm #(
       else          state <= next;
    end
 
+   // Next state logic
    always_comb begin
       next = XXX;
       unique case (1'b1)
@@ -88,19 +95,27 @@ module read_src_fsm #(
           else next = IDLE;
         end 
 
+        // Adding propagation delay time for the address to be added and any other setup
+        // that needs to take place before issuing a read request.
         state[ADDR_PROP_DELAY_BIT]:
             if (awaddr_prop_delay[2]) next = ADDR_SETUP;
             else next = ADDR_PROP_DELAY;
 
+         // The setup is complete and we are issuing a read request to the source address
          state[ADDR_SETUP_BIT]:
             if (src_mem.arvalid & src_mem.arready) next = CP_RSP_TO_FIFO;
             else next = ADDR_SETUP;
 
+         // Copy all the read data to the data FIFO.  The write engine will read from
+         // this FIFO and forward the data to the destination provided by the 
+         // current descriptor
          state[CP_RSP_TO_FIFO_BIT]:
             if (rlast_valid & (num_rlasts == (rlast_cnt+1))) next = WAIT_FOR_WR_RSP;
             else if (rlast_valid & need_more_rlast) next = ADDR_PROP_DELAY;
             else next = CP_RSP_TO_FIFO;
 
+         // Wait for the write engine to complete their transaction before servicing
+         // next descriptor 
          state[WAIT_FOR_WR_RSP_BIT]:
             if (wr_fsm_done) next = IDLE;
             else next = WAIT_FOR_WR_RSP;
@@ -120,32 +135,30 @@ module read_src_fsm #(
         saved_araddr      <= '0;
      end else begin
         awaddr_prop_delay <= '0;
-        rlast_cnt          <= rlast_cnt + rlast_valid;
+        rlast_cnt         <= rlast_cnt + rlast_valid;
         unique case (1'b1)
            next[IDLE_BIT]: begin
               wr_fifo_if.wr_en   <= 1'b0;
               src_mem.arvalid    <= 1'b0;
               rlast_cnt          <= '0;
            end 
-
+ 
            next[ADDR_PROP_DELAY_BIT]: begin
-               awaddr_prop_delay <= awaddr_prop_delay + 1;
-               src_mem.ar.addr   <= saved_araddr + ADDR_INCR;
+               awaddr_prop_delay  <= awaddr_prop_delay + 1;
+               src_mem.ar.addr    <= saved_araddr + ADDR_INCR;
                wr_fifo_if.wr_data <= state[CP_RSP_TO_FIFO_BIT] ? src_mem.r.data : '0;
                wr_fifo_if.wr_en   <= state[CP_RSP_TO_FIFO_BIT] & !wr_fifo_if.almost_full & src_mem.rvalid;
            end
            
            next[ADDR_SETUP_BIT]: begin
-              num_rlasts         <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_rlasts;
-              src_mem.arvalid    <= 1'b1;
-              src_mem.ar.addr    <= state[IDLE_BIT]           ? descriptor.src_addr : src_mem.ar.addr;
-                                    //state[CP_RSP_TO_FIFO_BIT] ? src_mem.ar.addr + ADDR_INCR : 
-                                                                //src_mem.ar.addr;
-              src_mem.ar.len     <= (state[CP_RSP_TO_FIFO_BIT] & need_more_rlast)           ? MAX_AXI_LEN : 
+              num_rlasts      <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_rlasts;
+              src_mem.arvalid <= 1'b1;
+              src_mem.ar.addr <= state[IDLE_BIT]           ? descriptor.src_addr : src_mem.ar.addr;
+              src_mem.ar.len  <= (state[CP_RSP_TO_FIFO_BIT] & need_more_rlast)           ? MAX_AXI_LEN : 
                                     (state[IDLE_BIT] & ((descriptor.length-1)>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
                                                                                           descriptor.length[AXI_LEN_W-1:0]-1;
-              src_mem.ar.burst   <= get_burst(descriptor.descriptor_control.mode);
-              src_mem.ar.size    <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
+              src_mem.ar.burst <= get_burst(descriptor.descriptor_control.mode);
+              src_mem.ar.size  <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
            end
 
            next[CP_RSP_TO_FIFO_BIT]: begin
@@ -156,8 +169,8 @@ module read_src_fsm #(
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin
-              wr_fifo_if.wr_data             <= src_mem.r.data;
-              wr_fifo_if.wr_en               <= !wr_fifo_if.almost_full & src_mem.rvalid & src_mem.r.last;
+              wr_fifo_if.wr_data <= src_mem.r.data;
+              wr_fifo_if.wr_en   <= !wr_fifo_if.almost_full & src_mem.rvalid & src_mem.r.last;
            end
 
            next[ERROR_BIT]: begin end
@@ -197,8 +210,6 @@ module read_src_fsm #(
 
   // CSR Status Signals 
   // Bandwidth calculations
-
-
   always_ff @(posedge clk) begin
      if (!reset_n) begin
         rd_src_status.busy             <= 1'b0;
@@ -235,8 +246,8 @@ module read_src_fsm #(
       
      end 
   end
-
   
+  // Save read AXI data and write FIFO data to text files for debugging
   // synthesis translate_off
   integer rd_src_axi_file;
   integer rd_src_fifo_file;

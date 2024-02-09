@@ -15,9 +15,6 @@
 //
 // Read registers (64 bits, byte address is offset * 8):
 //
-//   0: Device feature header (DFH)
-//   1: AFU_ID_L
-//   2: AFU_ID_L
 
 import dma_pkg::*;
 
@@ -319,15 +316,6 @@ module csr_mgr #(
             dma_csr_map.control                       <= 'b0;
         end
     end
-
-  // used for testing; remove
-  //assign control.mode       = dma_csr_map.descriptor.control.mode;
-  //assign control.descriptor = dma_csr_map.descriptor;
-  //always_ff @(posedge clk) begin
-  //    if (!reset_n) begin
-  //        control.reset_engine <= 'b0;
-  //    end
-  //end
 
     // synthesis translate_off
     always_ff @(posedge clk) begin

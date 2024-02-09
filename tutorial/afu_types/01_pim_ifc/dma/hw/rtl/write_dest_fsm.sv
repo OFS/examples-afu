@@ -1,8 +1,13 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: MIT
 
-`include "ofs_plat_if.vh"
 
+// write_dest_fsm is a finite state machine responsible for using the 
+// destination and length fields of the descriptor to issue a write request 
+// over AXI-MM. Similar to the read engine, it will issue 16kB write bursts 
+// until the data size requirement is met.
+
+`include "ofs_plat_if.vh"
 
 module write_dest_fsm #(
    parameter DATA_W = 512
@@ -102,38 +107,54 @@ module write_dest_fsm #(
            else next = IDLE;
          end 
 
+        // Adding propagation delay time for the address to be added and any other setup
+        // that needs to take place before issuing a read request.
         state[ADDR_PROP_DELAY_BIT]:
             if (awaddr_prop_delay[2]) next = ADDR_SETUP;
             else next = ADDR_PROP_DELAY;
 
+         // The setup is complete and we are issuing a write request to 
+         // the destination address provided by the descriptor
          state[ADDR_SETUP_BIT]:
            if (dest_mem.awvalid & dest_mem.awready) next = FIFO_EMPTY;
            else next = ADDR_SETUP;
-         
+
+         // The FIFO is empty and we need to wait for it to fill before  
+         // reading any more data.  Check if we are on the last packet  
          state[FIFO_EMPTY_BIT]:
             if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
             else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
             else if (!rd_fifo_if.not_empty) next = FIFO_EMPTY;
             else next = NOT_READY;
 
+         // The destination AXI interface is not ready.  We need to wait for   
+         // w.ready before reading any more data.  Check if we are on the 
+         // last packet  
          state[NOT_READY_BIT]:
             if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
             else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
             else if (!dest_mem.wready) next = NOT_READY;
             else next = RD_FIFO_WR_DEST;
 
-
+         // Nominal mode.  We are reading from the FIFO and forwarding the 
+         // read data to the destination address.
          state[RD_FIFO_WR_DEST_BIT]:
             if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
             else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
             else if ((!rd_fifo_if.not_empty) | (!dest_mem.wready)) next = FIFO_EMPTY;
             else next = RD_FIFO_WR_DEST;
 
+         // Optional state.  Wait to see that the response is ok before going
+         // back to idle and servicing the next descriptor.  This can be 
+         // ignored or change so that any erroneous write response at any time
+         // goes to the error state.   
          state[WAIT_FOR_WR_RSP_BIT]:
             if (wr_resp_ok && (wlast_cnt >= num_wlasts)) next = IDLE;
             else if (dma_pkg::ENABLE_ERROR & wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
             else next = WAIT_FOR_WR_RSP;
          
+         // Error state.  We have incurred an erroreous write response.  The 
+         // user must reset the dma engine to continue
          state[ERROR_BIT]:
             if (csr_control.reset_dispatcher) next = IDLE;
             else next = ERROR;
@@ -259,7 +280,6 @@ module write_dest_fsm #(
            next[ADDR_SETUP_BIT]: begin
               // Only reset the bandwidth calculations when transitioning from IDLE. This 
               // way we can can read the value after a transfer is complete
-              //wlast_counter       <= state[ADDR_PROP_DELAY_BIT] ? '0 : wlast_counter_next;
               wr_dest_clk_cnt     <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
               wr_dest_valid_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
            end
@@ -292,6 +312,7 @@ module write_dest_fsm #(
      end
   end
   
+  // Save write AXI data and read FIFO data to text files for debugging
   // synthesis translate_off
   integer wr_dest_fifo_file;
   integer wr_dest_axi_file;

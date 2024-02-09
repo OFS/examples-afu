@@ -11,7 +11,6 @@
 // status line writes) into the write stream as copy operations complete in
 // order to signal the host. Putting just the completion logic here makes
 // the code easier to read.
-//
 
 module dma_engine #(
     parameter MODE = dma_pkg::STAND_BY
