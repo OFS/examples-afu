@@ -9,8 +9,8 @@ CFLAGS += -I./$(OBJDIR)
 CPPFLAGS += -I./$(OBJDIR)
 
 # Files and folders
-SRCS = main.cpp dma.cpp 
-OBJS = $(addprefix $(OBJDIR)/,$(patsubst %.cpp,%.o,$(SRCS)))
+SRCS = main.c dma.c 
+OBJS = $(addprefix $(OBJDIR)/,$(patsubst %.c,%.o,$(SRCS)))
 
 all: $(TEST)
 
@@ -23,8 +23,8 @@ $(OBJS): $(AFU_JSON_INFO)
 $(TEST): $(OBJS)
 	$(CC) -o $@ $^ $(LDFLAGS) $(FPGA_LIBS) -lrt -pthread -lm
 
-$(OBJDIR)/%.o: %.cpp | objdir
-	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=700 -c $< -o $@
+$(OBJDIR)/%.o: %.c | objdir
+	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=700 -c $< -o $@ -std=c11
 
 clean:
 	rm -rf $(TEST) $(OBJDIR)

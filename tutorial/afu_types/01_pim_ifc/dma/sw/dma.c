@@ -274,7 +274,7 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
 
    // Set transfer size in number of beats of size awsize 
    const uint32_t awsize = 64; // 64 bytes per transfer - TODO: read the awsize from config register?
-   uint32_t      dma_len = ((test_buffer_size - 1) / awsize) + 1; // Ceiling of test_buffer_size / awsize 
+   uint32_t      dma_len = ((test_buffer_size - 1) / DMA_LINE_SIZE) + 1; // Ceiling of test_buffer_size / awsize 
    printf("dma_len = %d\n", dma_len);
 
    // Create expected result 

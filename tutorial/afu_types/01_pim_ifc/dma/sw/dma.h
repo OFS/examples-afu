@@ -55,7 +55,7 @@
 
 #define DMA_LINE_SIZE 64
 
-int run_basic_ddr_dma_test(fpga_handle afc_handle);
+int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool verbose);
 
 int dma(
     fpga_handle accel_handle, bool is_ase_sim,

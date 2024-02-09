@@ -35,7 +35,8 @@ void dma_transfer(fpga_handle accel_handle,
                   e_dma_mode mode,
                   uint64_t src, 
                   uint64_t dest, 
-                  int len);
+                  int len,
+                  bool verbose);
 
 volatile void* alloc_io_shared_buffer(fpga_handle accel_handle,
                                    ssize_t size,
