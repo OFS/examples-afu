@@ -19,8 +19,6 @@
 import dma_pkg::*;
 
 module csr_mgr #(
-    parameter MAX_REQS_IN_FLIGHT = 32,
-    parameter MAX_BURST_CNT = 8
 )(
     // CSR interface (MMIO on the host)
     ofs_plat_axi_mem_lite_if.to_source mmio64_to_afu,

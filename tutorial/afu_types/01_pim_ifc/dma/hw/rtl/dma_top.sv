@@ -83,11 +83,6 @@ module dma_top #(
 
 
     csr_mgr #(
-        // Maximum burst length is dictated by the size of the field in
-        // the AXI-MM host_mem. The PIM will map AXI-MM bursts to legal
-        // host channel bursts, including guaranteeing to satisfy any
-        // necessary address alignment.
-        .MAX_BURST_CNT(1 << host_mem.BURST_CNT_WIDTH_)
     ) csr_mgr_inst (
         .mmio64_to_afu,
         .dma_csr_map,
@@ -116,6 +111,12 @@ module dma_top #(
     //
     // Simplified AXI Interconnect  
     //
+    // The dma_ddr_selector and dma_axi_mm_mux work in tandem to act as 
+    // a simplified AXI interconnect.  The dma_ddr_selector allows the user
+    // to select the ddr back they wish to operate on, and the 
+    // dma_axi_mm_mux reroutes the AXI signals to the engine based on the 
+    // mode, or direction, of the transfer.
+    //  
     // ====================================================================
 
     ofs_plat_axi_mem_if #(

@@ -5,7 +5,7 @@
 
 //
 // This is not the main write engine. It is a wrapper around the main engine,
-// which is named copy_write_engine_core().
+// which is named dma_engine().
 //
 // The module here is responsible for injecting completions (interrupts or
 // status line writes) into the write stream as copy operations complete in
@@ -13,7 +13,6 @@
 // the code easier to read.
 
 module dma_engine #(
-    parameter MODE = dma_pkg::STAND_BY
    )(
       input  logic  clk,
       input  logic  reset_n,
@@ -29,10 +28,10 @@ module dma_engine #(
       output dma_pkg::t_dma_csr_status  dma_engine_status
    );
 
-   localparam SRC_ADDR_W  = (MODE == dma_pkg::DDR_TO_HOST) ? dma_pkg::DDR_ADDR_W : dma_pkg::HOST_ADDR_W;
-   localparam DEST_ADDR_W = (MODE == dma_pkg::HOST_TO_DDR) ? dma_pkg::DDR_ADDR_W : dma_pkg::HOST_ADDR_W;
-   localparam SRC_DATA_W  = (MODE == dma_pkg::DDR_TO_HOST) ? dma_pkg::HOST_DATA_W : dma_pkg::DDR_DATA_W;
-   localparam DEST_DATA_W = (MODE == dma_pkg::HOST_TO_DDR) ? dma_pkg::HOST_DATA_W : dma_pkg::DDR_DATA_W;
+   localparam SRC_ADDR_W  = dma_pkg::HOST_ADDR_W;
+   localparam DEST_ADDR_W = dma_pkg::HOST_ADDR_W;
+   localparam SRC_DATA_W  = dma_pkg::DDR_DATA_W;
+   localparam DEST_DATA_W = dma_pkg::DDR_DATA_W;
    localparam FIFO_DATA_W = dma_pkg::AXI_MM_DATA_W;
 
    logic wr_fsm_done;
