@@ -1,7 +1,7 @@
 include ../../common/sw/common_include.mk
 
 # Primary test name
-TEST = copy_engine
+TEST = dma
 
 # Build directory
 OBJDIR = obj
@@ -9,7 +9,7 @@ CFLAGS += -I./$(OBJDIR)
 CPPFLAGS += -I./$(OBJDIR)
 
 # Files and folders
-SRCS = main.c copy_engine.c
+SRCS = main.c dma.c 
 OBJS = $(addprefix $(OBJDIR)/,$(patsubst %.c,%.o,$(SRCS)))
 
 all: $(TEST)
@@ -21,7 +21,7 @@ $(AFU_JSON_INFO): ../hw/rtl/$(TEST).json | objdir
 $(OBJS): $(AFU_JSON_INFO)
 
 $(TEST): $(OBJS)
-	$(CC) -o $@ $^ $(LDFLAGS) $(FPGA_LIBS) -lrt -pthread
+	$(CC) -o $@ $^ $(LDFLAGS) $(FPGA_LIBS) -lrt -pthread -lm
 
 $(OBJDIR)/%.o: %.c | objdir
 	$(CC) $(CFLAGS) -D_XOPEN_SOURCE=700 -c $< -o $@ -std=c11
