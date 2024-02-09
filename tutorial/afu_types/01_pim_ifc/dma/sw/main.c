@@ -36,7 +36,7 @@ static void help(void) {
          "\n"
          "      -h,--help                   Print this help\n"
          "\n"
-         "      -s,--transfer-size-bytes    Size, in bytes, of data to move "
+         "      -s,--transfer-size          Size, in bytes, of data to move "
          "with each dma.\n"
          "                                  transfer. (Default: 8KB)\n"
          "      -v,--verbose                Verbose.  Shows debug messages and "
@@ -126,7 +126,7 @@ parse_args(int argc, char *argv[])
     case 's': /* transfer-size */
       transfer_size = (uint32_t)evaluate_expression(tmp_optarg);
       if (transfer_size < 0) {
-        fprintf(stderr, "Invalid expression in --transfer-size-bytes\n");
+        fprintf(stderr, "Invalid expression in --transfer-size\n");
         return -1;
       }
       break;
