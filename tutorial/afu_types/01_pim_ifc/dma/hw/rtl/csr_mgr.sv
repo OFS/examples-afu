@@ -87,8 +87,8 @@ module csr_mgr #(
     assign dma_csr_map.status.rd_rsp_err                    = dma_csr_status.rd_rsp_err;   
     assign dma_csr_map.status.wr_resp_enc                   = NOT_SUPPORTED;   
     assign dma_csr_map.status.wr_rsp_err                    = dma_csr_status.wr_rsp_err;   
-    assign dma_csr_map.status.irq                           = NOT_SUPPORTED;
-    assign dma_csr_map.status.stopped_on_early_termination  = NOT_SUPPORTED;
+    assign dma_csr_map.status.rsvd_9                        = NOT_SUPPORTED;
+    assign dma_csr_map.status.rsvd_8                        = NOT_SUPPORTED;
     assign dma_csr_map.status.stopped_on_error              = dma_csr_status.stopped_on_error;   
     assign dma_csr_map.status.resetting                     = dma_csr_map.control.reset_dispatcher;
     assign dma_csr_map.status.stopped                       = dma_csr_map.control.stop_dispatcher;   
@@ -165,7 +165,6 @@ module csr_mgr #(
     //
     // Decode register read addresses and respond with data.
     //
-
     assign mmio64_to_afu.rvalid = mmio64_reg.rvalid;
     assign mmio64_to_afu.r = mmio64_reg.r;
 
@@ -301,10 +300,8 @@ module csr_mgr #(
               DMA_DEST_ADDR:          dma_csr_map.descriptor.dest_addr          <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
               DMA_LENGTH:             dma_csr_map.descriptor.length             <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
               DMA_DESCRIPTOR_CONTROL: dma_csr_map.descriptor.descriptor_control <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
-
               DMA_CONTROL:            dma_csr_map.control           <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
             endcase
-            
         end
 
  

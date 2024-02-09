@@ -71,8 +71,6 @@ module dma_top #(
        dma_csr_status.rd_rsp_err                   = rd_src_status.rd_rsp_err;
        dma_csr_status.wr_resp_enc                  = '0;
        dma_csr_status.wr_rsp_err                   = wr_dest_status.wr_rsp_err;
-       dma_csr_status.irq                          = '0;
-       dma_csr_status.stopped_on_early_termination = '0;
        dma_csr_status.stopped_on_error             = wr_dest_status.stopped_on_error | rd_src_status.stopped_on_error; 
        dma_csr_status.resetting                    = '0; 
        dma_csr_status.stopped                      = '0; 
