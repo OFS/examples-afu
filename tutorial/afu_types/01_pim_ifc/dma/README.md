@@ -3,7 +3,7 @@
 
 The direct memory access (DMA) AFU example shows how to manage memory transfers between the host processor and the FPGA without the need for processor intervention.  You can integrate the DMA AFU into your design to move data between the host memory and the FPGA local memory. The minimum and maximum supported size for each transfer is 64B and 2MB, respectively.
 
-![DMA Top Level Block Diagram](doc/dma_top_block_diagram.PNG)
+![DMA Top Level Block Diagram](doc/dma_top_block_diagram.png)
 
 The DMA AFU comprises the following primary submodules:
 - Control/Status Register (CSR) block
@@ -25,7 +25,7 @@ DMA Top Level RTL Source Files:
 
 ## DMA Engine Block Diagram
 - [dma\_engine.sv](hw/rtl/dma_engine.sv) is responsible for servicing each DMA transaction with the information provided by the descriptors. It contains a read and write engine, with a data FIFO in between.  When a descriptor is committed, the read engine ([read\_src\_fsm.sv](hw/rtl/read_src_fsm.sv)) will use the information in the descriptors to issue a read request, where the read data is then written to the data FIFO. The write engine ([write\_dest\_fsm.sv](hw/rtl/write_dest_fsm.sv)) will use the information in the descriptor to read the FIFO and write the data to the destination address. 
-![DMA Engine Block Diagram](doc/dma_engine_block_diagram.PNG)
+![DMA Engine Block Diagram](doc/dma_engine_block_diagram.png)
 
 - [read\_src\_fsm.sv](hw/rtl/read_src_fsm.sv) is a finite state machine responsible for using the source address and length fields of the descriptor to issue a read request over AXI-MM.  Since the max burst size specified by the AXI is 256 (16kB), it will issue 16kB read request bursts until the data size requirement is met.  It then copies the data to a data FIFO so that it may be forwarded to the destination by the write engine.  
 - [write\_dest\_fsm.sv](hw/rtl/write_dest_fsm.sv) is a finite state machine responsible for using the destination and length fields of the descriptor to issue a write request over AXI-MM. Similar to the read engine, it will issue 16kB write bursts until the data size requirement is met.
