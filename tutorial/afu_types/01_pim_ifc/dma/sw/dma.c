@@ -172,7 +172,7 @@ void print_csrs() {
   printf("  RD_SRC_PERF_CNTR:       %016lX\n", rd_src_perf_cntr);
 
   uint64_t wr_dest_perf_cntr = readMMIO64(DMA_CSR_IDX_WR_DEST_PERF_CNTR);
-  printf("  WR_DEST_PERF_CNTR:       %016lX\n", wr_dest_perf_cntr);
+  printf("  WR_DEST_PERF_CNTR:      %016lX\n", wr_dest_perf_cntr);
 
   printf("\n");
 }
