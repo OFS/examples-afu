@@ -12,4 +12,4 @@ dma_axi_mm_mux.sv
 dma_ddr_selector.sv
 
 # Pointer to software:
-# sw:../../sw/dma.cpp
+# sw:../../sw/dma
