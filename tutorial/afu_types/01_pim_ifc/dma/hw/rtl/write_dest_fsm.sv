@@ -127,7 +127,8 @@ module write_dest_fsm #(
             else next = RD_FIFO_WR_DEST;
 
          state[NOT_READY_BIT]:
-            if (!dest_mem.wready & rd_fifo_if.not_empty) next = NOT_READY;
+            if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
+            else if (!dest_mem.wready & rd_fifo_if.not_empty) next = NOT_READY;
             else if (dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY;
             else if (!dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY_NOT_READY;
             else next = RD_FIFO_WR_DEST;
