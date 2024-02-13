@@ -1,13 +1,8 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: MIT
 
-
-// write_dest_fsm is a finite state machine responsible for using the 
-// destination and length fields of the descriptor to issue a write request 
-// over AXI-MM. Similar to the read engine, it will issue 16kB write bursts 
-// until the data size requirement is met.
-
 `include "ofs_plat_if.vh"
+
 
 module write_dest_fsm #(
    parameter DATA_W = 512
@@ -31,7 +26,7 @@ module write_dest_fsm #(
    localparam [AXI_LEN_W-1:0] MAX_AXI_LEN = '1;
    localparam ADDR_BYTE_IDX_W = dest_mem.ADDR_BYTE_IDX_WIDTH;
 
-   `define NUM_WR_STATES 8
+   `define NUM_WR_STATES 9
 
    enum {
       IDLE_BIT,
@@ -39,6 +34,7 @@ module write_dest_fsm #(
       ADDR_SETUP_BIT,
       FIFO_EMPTY_BIT,
       NOT_READY_BIT,
+      FIFO_EMPTY_NOT_READY_BIT,
       RD_FIFO_WR_DEST_BIT,
       WAIT_FOR_WR_RSP_BIT,
       ERROR_BIT
@@ -50,6 +46,7 @@ module write_dest_fsm #(
       ADDR_SETUP      = `NUM_WR_STATES'b1<<ADDR_SETUP_BIT,
       FIFO_EMPTY      = `NUM_WR_STATES'b1<<FIFO_EMPTY_BIT,
       NOT_READY       = `NUM_WR_STATES'b1<<NOT_READY_BIT,
+      FIFO_EMPTY_NOT_READY = `NUM_WR_STATES'b1<<FIFO_EMPTY_NOT_READY_BIT,
       RD_FIFO_WR_DEST = `NUM_WR_STATES'b1<<RD_FIFO_WR_DEST_BIT,
       WAIT_FOR_WR_RSP = `NUM_WR_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
       ERROR           = `NUM_WR_STATES'b1<<ERROR_BIT,
@@ -81,6 +78,7 @@ module write_dest_fsm #(
    logic [dma_pkg::LENGTH_W-1:0] wlast_counter_next;
    logic [dma_pkg::LENGTH_W-1:0] wr_dest_clk_cnt;
    logic [dma_pkg::LENGTH_W-1:0] wr_dest_valid_cnt;
+   logic packet_complete;
 
    assign wr_dest_status.wr_dest_perf_cntr.wr_dest_clk_cnt = {12'b0, wr_dest_clk_cnt};
    assign wr_dest_status.wr_dest_perf_cntr.wr_dest_valid_cnt = {12'b0, wr_dest_valid_cnt};
@@ -103,58 +101,50 @@ module write_dest_fsm #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: begin 
-           if (descriptor.descriptor_control.go & descriptor_fifo_not_empty & dest_mem.awready)next = ADDR_SETUP;
+           if (descriptor.descriptor_control.go & descriptor_fifo_not_empty & dest_mem.awready & rd_fifo_if.not_empty)next = ADDR_SETUP;
            else next = IDLE;
          end 
 
-        // Adding propagation delay time for the address to be added and any other setup
-        // that needs to take place before issuing a read request.
         state[ADDR_PROP_DELAY_BIT]:
             if (awaddr_prop_delay[2]) next = ADDR_SETUP;
+            else if (!need_more_wlast) next = WAIT_FOR_WR_RSP;
             else next = ADDR_PROP_DELAY;
 
-         // The setup is complete and we are issuing a write request to 
-         // the destination address provided by the descriptor
          state[ADDR_SETUP_BIT]:
            if (dest_mem.awvalid & dest_mem.awready) next = FIFO_EMPTY;
            else next = ADDR_SETUP;
-
-         // The FIFO is empty and we need to wait for it to fill before  
-         // reading any more data.  Check if we are on the last packet  
+ 
+         state[FIFO_EMPTY_NOT_READY_BIT]:
+            if (!dest_mem.wready & rd_fifo_if.not_empty) next = NOT_READY;
+            else if (dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY;
+            else if (!dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY_NOT_READY;
+            else next = RD_FIFO_WR_DEST;
+         
          state[FIFO_EMPTY_BIT]:
-            if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
-            else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
-            else if (!rd_fifo_if.not_empty) next = FIFO_EMPTY;
-            else next = NOT_READY;
+            if (!dest_mem.wready & rd_fifo_if.not_empty) next = NOT_READY;
+            else if (dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY;
+            else if (!dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY_NOT_READY;
+            else next = RD_FIFO_WR_DEST;
 
-         // The destination AXI interface is not ready.  We need to wait for   
-         // w.ready before reading any more data.  Check if we are on the 
-         // last packet  
          state[NOT_READY_BIT]:
-            if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
-            else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
-            else if (!dest_mem.wready) next = NOT_READY;
+            if (!dest_mem.wready & rd_fifo_if.not_empty) next = NOT_READY;
+            else if (dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY;
+            else if (!dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY_NOT_READY;
             else next = RD_FIFO_WR_DEST;
 
-         // Nominal mode.  We are reading from the FIFO and forwarding the 
-         // read data to the destination address.
          state[RD_FIFO_WR_DEST_BIT]:
-            if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
-            else if (wlast_valid & !need_more_wlast) next = WAIT_FOR_WR_RSP;
-            else if ((!rd_fifo_if.not_empty) | (!dest_mem.wready)) next = FIFO_EMPTY;
+            if (packet_complete & (!need_more_wlast)) next = WAIT_FOR_WR_RSP;
+            else if (wlast_valid & need_more_wlast) next = ADDR_PROP_DELAY;
+            else if ((!rd_fifo_if.not_empty) & (!dest_mem.wready)) next = FIFO_EMPTY_NOT_READY;
+            else if ((!rd_fifo_if.not_empty) & (dest_mem.wready)) next = FIFO_EMPTY;
+            else if ((rd_fifo_if.not_empty) & (!dest_mem.wready)) next = NOT_READY;
             else next = RD_FIFO_WR_DEST;
 
-         // Optional state.  Wait to see that the response is ok before going
-         // back to idle and servicing the next descriptor.  This can be 
-         // ignored or change so that any erroneous write response at any time
-         // goes to the error state.   
          state[WAIT_FOR_WR_RSP_BIT]:
-            if (wr_resp_ok && (wlast_cnt >= num_wlasts)) next = IDLE;
+            if (packet_complete) next = IDLE;
             else if (dma_pkg::ENABLE_ERROR & wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
             else next = WAIT_FOR_WR_RSP;
          
-         // Error state.  We have incurred an erroreous write response.  The 
-         // user must reset the dma engine to continue
          state[ERROR_BIT]:
             if (csr_control.reset_dispatcher) next = IDLE;
             else next = ERROR;
@@ -216,29 +206,108 @@ module write_dest_fsm #(
       end
    end
 
+   logic dest_mem_wvalid;
+   logic dest_mem_wlast;
+   logic [DATA_W-3:0] dest_mem_wdata;
+   always_ff @(posedge clk) begin
+      if (!reset_n) begin
+         dest_mem.wvalid  <= 1'b0;
+         dest_mem.w.data   <= '0;
+         dest_mem.w.last   <= 1'b0;
+         dest_mem.w.strb  <= '0;
+         dest_mem.w.user  <= '0;
+      end else begin
+         dest_mem.wvalid <= dest_mem_wvalid;
+         dest_mem.w.data <= dest_mem_wdata;
+         dest_mem.w.last <= dest_mem_wlast;
+         dest_mem.w.strb <= '1;
+         dest_mem.w.user <= '0;
+         unique case (1'b1)
+           next[IDLE_BIT]: begin
+           end 
+           next[ADDR_PROP_DELAY_BIT]: begin 
+           end
+           
+           next[ADDR_SETUP_BIT]: begin
+           end
+
+           next[FIFO_EMPTY_NOT_READY_BIT]: begin
+              dest_mem.w.last  <= dest_mem.w.last;
+              dest_mem.wvalid <= dest_mem.wvalid;
+              dest_mem.w.data <= dest_mem.w.data;
+           end
+
+           next[FIFO_EMPTY_BIT]: begin 
+           end
+          
+           next[NOT_READY_BIT]: begin
+              dest_mem.w.last  <= dest_mem.w.last;
+              dest_mem.wvalid <= dest_mem.wvalid;
+              dest_mem.w.data <= dest_mem.w.data;
+           end
+
+           next[RD_FIFO_WR_DEST_BIT]: begin
+           end
+           
+           next[WAIT_FOR_WR_RSP_BIT]: begin end
+
+           next[ERROR_BIT]: begin end
+
+       endcase
+
+      end
+   end
 
    // Data & Descriptor FIFO control
    always_comb begin
-      rd_fifo_if.rd_en                = 1'b0;
       dest_mem.bready                 = 1'b1;
       wr_fsm_done                     = 1'b0;
       wr_dest_status.stopped_on_error = 1'b0;
       wr_dest_status.wr_rsp_err       = 1'b0;
-      dest_mem.awvalid                = 1'b0;
       dest_mem.arvalid                = 1'b0;
+      dest_mem.awvalid                = 1'b0;
+      rd_fifo_if.rd_en                = 1'b0;
+      dest_mem_wvalid                 = 1'b0;
+      packet_complete = 1'b0;
+      dest_mem_wlast  = 1'b0;
+    //packet_complete = rd_fifo_if.rd_data[DATA_W-1];
+    //dest_mem_wlast  = rd_fifo_if.rd_data[DATA_W-2];
+    //dest_mem_wdata  = rd_fifo_if.rd_data[DATA_W-3:0];
+ 
+      {packet_complete, 
+         dest_mem_wlast, 
+         dest_mem_wdata} = rd_fifo_if.rd_data;
+
       unique case (1'b1)
-         state[IDLE_BIT]: begin end
-         state[ADDR_PROP_DELAY_BIT]: begin end
+         state[IDLE_BIT]: begin 
+            rd_fifo_if.rd_en = 0;
+         end
+         state[ADDR_PROP_DELAY_BIT]: begin 
+            rd_fifo_if.rd_en = 0;
+         end
          state[ADDR_SETUP_BIT]:begin
+            rd_fifo_if.rd_en = 0;
             dest_mem.awvalid = dest_mem.awready;
          end
-         state[FIFO_EMPTY_BIT]:begin end
-         state[NOT_READY_BIT]:begin end
+         state[FIFO_EMPTY_NOT_READY_BIT]: begin
+            rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty;
+            dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty;
+         end
+         state[FIFO_EMPTY_BIT]:begin 
+            rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty;
+            dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty;
+         end
+         state[NOT_READY_BIT]:begin 
+            rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty;
+            dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty;
+         end
          state[RD_FIFO_WR_DEST_BIT]: begin 
-            rd_fifo_if.rd_en = rd_fifo_if.not_empty & dest_mem.wready;
+            rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty & (!next[ADDR_PROP_DELAY_BIT]);
+            dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty & (!next[ADDR_PROP_DELAY_BIT]);
          end
          state[WAIT_FOR_WR_RSP_BIT]: begin 
-            wr_fsm_done     = wr_resp_ok;
+            rd_fifo_if.rd_en = 1'b0;
+            wr_fsm_done      = 1'b1;
          end
          state[ERROR_BIT]:begin 
             wr_dest_status.stopped_on_error = 1'b1;
@@ -247,27 +316,19 @@ module write_dest_fsm #(
       endcase
    end
 
- // CSR Status Signals 
+  // CSR Status Signals 
   // Bandwidth calculations
   always_ff @(posedge clk) begin
      if (!reset_n) begin
         wr_dest_status.busy <= 1'b0;
         wr_dest_clk_cnt     <= '0;
         wr_dest_valid_cnt   <= '0;
-        dest_mem.w.strb     <= '1;
-        dest_mem.wvalid     <= 1'b0;
-        dest_mem.w.last     <= 1'b0;
-        dest_mem.w.data     <= '0;
-        dest_mem.w.user     <= '0;
         wlast_counter       <= '0; // used for asserting w.last
    
      end else begin
         wr_dest_clk_cnt     <= wr_dest_clk_cnt + 1;
         wr_dest_valid_cnt   <= wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);
         wlast_counter       <= wlast_counter_next;
-        dest_mem.wvalid     <= 1'b0;
-        dest_mem.w.data     <= rd_fifo_if.rd_data;
-        dest_mem.w.last     <= dest_mem.wready & (desc_length_minus_one==wlast_counter_next) | (wlast_counter_next[AXI_LEN_W-1:0]==MAX_AXI_LEN); 
         unique case (1'b1)
            next[IDLE_BIT]: begin
               wr_dest_status.busy <= 1'b0;
@@ -275,33 +336,26 @@ module write_dest_fsm #(
               wr_dest_valid_cnt   <= wr_dest_valid_cnt;
               wlast_counter       <= '0;
            end 
-           next[ADDR_PROP_DELAY_BIT]: begin end
+           next[ADDR_PROP_DELAY_BIT]: begin 
+           end
            
            next[ADDR_SETUP_BIT]: begin
               // Only reset the bandwidth calculations when transitioning from IDLE. This 
               // way we can can read the value after a transfer is complete
-              wr_dest_clk_cnt     <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
-              wr_dest_valid_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
+              wr_dest_clk_cnt   <= state[IDLE_BIT] ? '0 : wr_dest_clk_cnt + 1;;
+              wr_dest_valid_cnt <= state[IDLE_BIT] ? '0 : wr_dest_valid_cnt + (dest_mem.wvalid & dest_mem.wready);;
+           end
+
+           state[FIFO_EMPTY_NOT_READY_BIT]: begin
            end
 
            next[FIFO_EMPTY_BIT]: begin 
-              dest_mem.w.data <= (state[RD_FIFO_WR_DEST_BIT] & rd_fifo_if.not_empty)   ? dest_mem.w.data    : 
-                                 (dest_mem.wvalid & dest_mem.wready)                   ? rd_fifo_if.rd_data : 
-                                                                                         dest_mem.w.data;
-
-              dest_mem.wvalid <= (state[RD_FIFO_WR_DEST_BIT] & rd_fifo_if.not_empty) ? 1'b1 : 
-                                 (dest_mem.wvalid & dest_mem.wready)                 ? 1'b0 : 
-                                                                                       dest_mem.wvalid; 
            end
           
            next[NOT_READY_BIT]: begin
-              dest_mem.w.data <= (dest_mem.wready & dest_mem.wvalid) ? rd_fifo_if.rd_data : dest_mem.w.data;
-              dest_mem.wvalid <= (dest_mem.wready & dest_mem.wvalid) ? 1'b0 : dest_mem.wvalid; 
            end
 
            next[RD_FIFO_WR_DEST_BIT]: begin
-             dest_mem.w.data <= rd_fifo_if.rd_data;
-             dest_mem.wvalid <= rd_fifo_if.rd_en;
            end
            
            next[WAIT_FOR_WR_RSP_BIT]: begin end
@@ -312,7 +366,6 @@ module write_dest_fsm #(
      end
   end
   
-  // Save write AXI data and read FIFO data to text files for debugging
   // synthesis translate_off
   integer wr_dest_fifo_file;
   integer wr_dest_axi_file;
@@ -331,7 +384,8 @@ module write_dest_fsm #(
               begin
                  @(posedge clk);
                  if (rd_fifo_if.rd_en) 
-                    $fwrite(wr_dest_fifo_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, rd_fifo_if.rd_data);
+                    //if (rd_fifo_if.rd_data[DATA_W]) $fwrite(wr_dest_fifo_file, "tlast = 1;");
+                    $fwrite(wr_dest_fifo_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, rd_fifo_if.rd_data[DATA_W-3:0]);
               end
            join
         end
