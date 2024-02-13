@@ -241,29 +241,41 @@ module read_src_fsm #(
   end
 
   
-  // synthesis translate_off
-  integer rd_src_axi_file;
-  integer rd_src_fifo_file;
-
-  initial begin 
-     rd_src_axi_file = $fopen("rd_src_axi.txt","a");
-     rd_src_fifo_file = $fopen("rd_src_fifo.txt","a");
-
-     forever begin
-           fork 
-              begin
-                  @(posedge clk);
-                  if (wr_fifo_if.wr_en) 
-                     $fwrite(rd_src_fifo_file, "0x%0h: 0x%0h\n", descriptor.descriptor_control.mode,wr_fifo_if.wr_data[DATA_W-3:0]);
-              end
-              begin
-                  @(posedge clk);
-                  if (src_mem.rvalid & src_mem.rready) 
-                     $fwrite(rd_src_axi_file, "0x%0h: 0x%0h\n", descriptor.descriptor_control.mode,src_mem.r.data);
-              end
-           join
-     end
-  end
-  // synthesis translate_on
+   // synthesis translate_off
+   integer rd_src_axi_file;
+   integer rd_src_fifo_file;
+   integer debug;
+ 
+   initial begin 
+      debug = 0;
+      if (debug) begin
+      rd_src_axi_file = $fopen("rd_src_axi.txt","a");
+      rd_src_fifo_file = $fopen("rd_src_fifo.txt","a");
+      end
+ 
+      forever begin
+         fork 
+            begin
+                @(posedge clk);
+                if (wr_fifo_if.wr_en & debug) 
+                   $fwrite(rd_src_fifo_file, "0x%0h: 0x%0h\n", descriptor.descriptor_control.mode,wr_fifo_if.wr_data[DATA_W-3:0]);
+            end
+            begin
+                @(posedge clk);
+                if (src_mem.rvalid & src_mem.rready & debug) 
+                   $fwrite(rd_src_axi_file, "0x%0h: 0x%0h\n", descriptor.descriptor_control.mode,src_mem.r.data);
+            end
+            begin
+               // close the debug files
+               @(posedge clk);
+               if (state[WAIT_FOR_WR_RSP_BIT] & wr_fsm_done & debug) begin
+                  $fclose(rd_src_axi_file);
+                  $fclose(rd_src_fifo_file);
+               end
+            end 
+         join
+      end
+   end
+   // synthesis translate_on
  
 endmodule

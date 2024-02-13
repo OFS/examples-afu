@@ -79,8 +79,8 @@ module write_dest_fsm #(
 
    assign wr_dest_status.wr_dest_perf_cntr.wr_dest_clk_cnt = {12'b0, wr_dest_clk_cnt};
    assign wr_dest_status.wr_dest_perf_cntr.wr_dest_valid_cnt = {12'b0, wr_dest_valid_cnt};
-   assign axi_size   = dest_mem.ADDR_BYTE_IDX_WIDTH;
-   assign wr_resp    = dest_mem.bvalid & dest_mem.bready;
+   assign axi_size = dest_mem.ADDR_BYTE_IDX_WIDTH;
+   assign wr_resp = dest_mem.bvalid & dest_mem.bready;
    assign wr_resp_ok = wr_resp & (dest_mem.b.resp==dma_pkg::OKAY);
    assign dest_mem.rready = 1'b1;
    assign wr_dest_status.wr_state = state; 
@@ -354,30 +354,40 @@ module write_dest_fsm #(
   end
   
   // synthesis translate_off
-  integer wr_dest_fifo_file;
-  integer wr_dest_axi_file;
-
-  initial begin 
-     wr_dest_axi_file = $fopen("wr_dest_axi.txt","a");
-     wr_dest_fifo_file = $fopen("wr_dest_fifo.txt","a");
-     forever begin
-        begin
-           fork 
-              begin
-                 @(posedge clk);
-                 if (dest_mem.wvalid & dest_mem.wready) 
-                    $fwrite(wr_dest_axi_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, dest_mem.w.data);
-              end
-              begin
-                 @(posedge clk);
-                 if (rd_fifo_if.rd_en) 
-                    //if (rd_fifo_if.rd_data[DATA_W]) $fwrite(wr_dest_fifo_file, "tlast = 1;");
-                    $fwrite(wr_dest_fifo_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, rd_fifo_if.rd_data[DATA_W-3:0]);
-              end
-           join
-        end
-     end 
-  end
+   integer wr_dest_fifo_file;
+   integer wr_dest_axi_file;
+   integer debug;
+ 
+   initial begin 
+      debug  = 0;
+      if (debug) begin
+    	  wr_dest_axi_file = $fopen("wr_dest_axi.txt","a");
+    	  wr_dest_fifo_file = $fopen("wr_dest_fifo.txt","a");
+      end
+ 
+      forever begin
+         fork 
+            begin
+               @(posedge clk);
+               if (dest_mem.wvalid & dest_mem.wready & debug) 
+                  $fwrite(wr_dest_axi_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, dest_mem.w.data);
+            end
+            begin
+               @(posedge clk);
+               if (rd_fifo_if.rd_en & debug) 
+                  $fwrite(wr_dest_fifo_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, rd_fifo_if.rd_data[DATA_W-3:0]);
+            end
+            begin
+               // close the debug files
+               @(posedge clk);
+               if (state[WAIT_FOR_WR_RSP_BIT] & packet_complete & debug) begin
+                  $fclose(wr_dest_axi_file);
+                  $fclose(wr_dest_fifo_file);
+               end
+            end 
+         join
+      end 
+   end
   // synthesis translate_on
  
 endmodule

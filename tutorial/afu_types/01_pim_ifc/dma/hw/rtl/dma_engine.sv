@@ -3,15 +3,14 @@
 
 `include "ofs_plat_if.vh"
 
-//
-// This is not the main write engine. It is a wrapper around the main engine,
-// which is named copy_write_engine_core().
-//
-// The module here is responsible for injecting completions (interrupts or
-// status line writes) into the write stream as copy operations complete in
-// order to signal the host. Putting just the completion logic here makes
-// the code easier to read.
-//
+
+// dma_engine is responsible for servicing each DMA transaction with the information 
+// provided by the descriptors. It contains a read and write engine, with a data FIFO 
+// in between.  When a descriptor is committed, the read engine read_src_fsm will 
+// use the information in the descriptors to issue a read request, where the read 
+// data is then written to the data FIFO. The write engine write_dest_fsm will use
+// the information in the descriptor to read the FIFO and write the data to the 
+// destination address. 
 
 module dma_engine #(
     parameter MODE = dma_pkg::STAND_BY
