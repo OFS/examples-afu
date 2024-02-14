@@ -38,10 +38,10 @@ DMA Top Level RTL Source Files:
 The software demonstrates the same OPAE capabilities as previous examples to initiate a DMA transaction.  
 
 ```bash
-# --transfer-size-bytes: Initiating a DMA transfer with bytes 
+# --transfer-size: Initiating a DMA transfer with bytes 
 #                        Minimum = 64 
 #                        Maximum = 2097152
-./dma --transfer-size-bytes=16384
+./dma --transfer-size=16384
 ```
 
 This example shows how to initiate a 16kB DMA transfer.

@@ -4,7 +4,7 @@
 `include "ofs_plat_if.vh"
 
 
-module write_dest_fsm #(
+module dma_write_engine #(
    parameter DATA_W = 512
 )(
    input logic clk,

@@ -93,9 +93,9 @@ void print_bandwidth(e_dma_mode descriptor_mode) {
   rd_src_clk_cnt &= 0xFFFFF;
   const double read_uptime = (rd_src_valid_cnt * 1.0) / (rd_src_clk_cnt * 1.0);
   if (descriptor_mode == ddr_to_host) {
-    printf("\nAFU Read ");
+    printf("\nAFU Reading DDR ");
   } else {
-    printf("\nHost to AFU ");
+    printf("\nAFU Reading Host ");
   }
   printf("BW = %f GB/S\n", read_uptime * MAX_TRPT_BYTES / 1000.0);
 

@@ -3,12 +3,11 @@
 
 `include "ofs_plat_if.vh"
 
-
 // dma_engine is responsible for servicing each DMA transaction with the information 
 // provided by the descriptors. It contains a read and write engine, with a data FIFO 
-// in between.  When a descriptor is committed, the read engine read_src_fsm will 
+// in between.  When a descriptor is committed, the read engine dma_read_engine will 
 // use the information in the descriptors to issue a read request, where the read 
-// data is then written to the data FIFO. The write engine write_dest_fsm will use
+// data is then written to the data FIFO. The write engine dma_write_engine will use
 // the information in the descriptor to read the FIFO and write the data to the 
 // destination address. 
 
@@ -43,10 +42,18 @@ module dma_engine #(
        dma_engine_status.response_fifo_empty = !rd_fifo_if.not_empty;
    end
 
-     write_dest_fsm #(
+   dma_write_engine #(
       .DATA_W (FIFO_DATA_W)
-   ) write_dest_fsm_inst (
-      .*
+   ) dma_write_engine_inst (
+      .clk,
+      .reset_n,
+      .wr_fsm_done,
+      .descriptor_fifo_not_empty,
+      .descriptor,
+      .wr_dest_status,
+      .csr_control,
+      .dest_mem,
+      .rd_fifo_if
    );
    
    ofs_plat_prim_fifo_bram #(
@@ -67,10 +74,18 @@ module dma_engine #(
       .first    (rd_fifo_if.rd_data) 
    ); 
 
-   read_src_fsm #(
+   dma_read_engine #(
       .DATA_W (FIFO_DATA_W)
-   ) read_src_fsm_inst (
-      .*
+   ) dma_read_engine_inst (
+      .clk,
+      .reset_n,
+      .wr_fsm_done,
+      .descriptor,
+      .rd_src_status, 
+      .descriptor_fifo_not_empty,
+      .descriptor_fifo_rdack,
+      .src_mem,
+      .wr_fifo_if
    );
 
 endmodule // copy_write_engine

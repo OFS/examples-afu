@@ -4,7 +4,7 @@
 `include "ofs_plat_if.vh"
 
 
-module read_src_fsm #(
+module dma_read_engine #(
    parameter DATA_W = 512
 )(
    input logic clk,
