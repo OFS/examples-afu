@@ -38,19 +38,13 @@ DMA Top Level RTL Source Files:
 The software demonstrates the same OPAE capabilities as previous examples to initiate a DMA transaction.  
 
 ```bash
-# --transfer-size-lines: Initiating a DMA transfer with 64 Byte cache lines
-#                        Minimum = 1 (64B)
-#                        Maximum = 2048 (2MB)
-./dma --transfer-size-lines=256
-
-
 # --transfer-size-bytes: Initiating a DMA transfer with bytes 
 #                        Minimum = 64 
 #                        Maximum = 2097152
 ./dma --transfer-size-bytes=16384
 ```
 
-Both examples show how to initiate a 16kB DMA transfer.  The first one is in terms of lines (256 64B lines = 16kB).  The second one explicitely sets the number of bytes.
+This example shows how to initiate a 16kB DMA transfer.
 
 Huge pages requirement for this test:
   - More than 32, 2MB huge pages need to be setup
