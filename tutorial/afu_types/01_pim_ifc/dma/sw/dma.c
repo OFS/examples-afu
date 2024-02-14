@@ -206,7 +206,6 @@ void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t dev_src,
   fpga_result res = FPGA_OK;
 
   // dma requires 64 byte alignment
-  // assert(len % 64 == 0);
   assert(dev_src % 64 == 0);
   assert(dev_dest % 64 == 0);
 
@@ -269,6 +268,10 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
 
   // Set test transfer size
   uint32_t test_buffer_size;
+
+  //Ensure the transfer size is in terms of 64B (512-bit) lines
+  assert(transfer_size%64==0);
+
   if (s_is_ase_sim)
     assert(transfer_size <= TEST_BUFFER_SIZE_ASE);
   else
