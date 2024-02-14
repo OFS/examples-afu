@@ -185,10 +185,10 @@ void send_descriptor(fpga_handle accel_handle, uint64_t mmio_dst,
   uint32_t dev_addr = mmio_dst;
 
   fpgaWriteMMIO64(accel_handle, 0, dev_addr, desc.src_address);
-  printf("Writing %X to address %X\n", desc.src_address, dev_addr);
+  printf("Writing %lX to address %X\n", desc.src_address, dev_addr);
   dev_addr += 8;
   fpgaWriteMMIO64(accel_handle, 0, dev_addr, desc.dest_address);
-  printf("Writing %X to address %X\n", desc.dest_address, dev_addr);
+  printf("Writing %lX to address %X\n", desc.dest_address, dev_addr);
   dev_addr += 8;
   fpgaWriteMMIO64(accel_handle, 0, dev_addr, desc.len);
   printf("Writing %X to address %X\n", desc.len, dev_addr);
@@ -230,8 +230,8 @@ void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t dev_src,
   int desc_size = sizeof(desc);
   if (verbose) {
     printf("\nDescriptor size   = %d\n", desc_size);
-    printf("desc.src_address  = %04X\n", desc.src_address);
-    printf("desc.dest_address = %04X\n", desc.dest_address);
+    printf("desc.src_address  = %04lX\n", desc.src_address);
+    printf("desc.dest_address = %04lX\n", desc.dest_address);
     printf("desc.len          = %d\n", desc.len);
     printf("desc.control      = %04X\n", desc.control);
   }
