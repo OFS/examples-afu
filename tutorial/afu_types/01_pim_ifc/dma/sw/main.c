@@ -125,10 +125,6 @@ parse_args(int argc, char *argv[])
 
     case 's': /* transfer-size */
       transfer_size = (uint32_t)evaluate_expression(tmp_optarg);
-      if (transfer_size < 0) {
-        fprintf(stderr, "Invalid expression in --transfer-size\n");
-        return -1;
-      }
       break;
 
     case 'v': /* verbose (debug) */
