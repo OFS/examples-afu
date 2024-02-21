@@ -12,8 +12,8 @@ typedef enum dma_mode {
 } e_dma_mode;
 
 typedef struct __attribute__((__packed__))  {
-   uint32_t src_address;
-   uint32_t dest_address;
+   uint64_t src_address;
+   uint64_t dest_address;
    uint32_t len;
    uint32_t control;
 } dma_descriptor_t;

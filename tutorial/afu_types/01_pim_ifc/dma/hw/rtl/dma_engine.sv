@@ -3,16 +3,16 @@
 
 `include "ofs_plat_if.vh"
 
-//
-// This is not the main write engine. It is a wrapper around the main engine,
-// which is named dma_engine().
-//
-// The module here is responsible for injecting completions (interrupts or
-// status line writes) into the write stream as copy operations complete in
-// order to signal the host. Putting just the completion logic here makes
-// the code easier to read.
+// dma_engine is responsible for servicing each DMA transaction with the information 
+// provided by the descriptors. It contains a read and write engine, with a data FIFO 
+// in between.  When a descriptor is committed, the read engine dma_read_engine will 
+// use the information in the descriptors to issue a read request, where the read 
+// data is then written to the data FIFO. The write engine dma_write_engine will use
+// the information in the descriptor to read the FIFO and write the data to the 
+// destination address. 
 
 module dma_engine #(
+    parameter MODE = dma_pkg::STAND_BY
    )(
       input  logic  clk,
       input  logic  reset_n,
@@ -28,15 +28,13 @@ module dma_engine #(
       output dma_pkg::t_dma_csr_status  dma_engine_status
    );
 
-   localparam SRC_ADDR_W  = dma_pkg::HOST_ADDR_W;
-   localparam DEST_ADDR_W = dma_pkg::HOST_ADDR_W;
-   localparam SRC_DATA_W  = dma_pkg::DDR_DATA_W;
-   localparam DEST_DATA_W = dma_pkg::DDR_DATA_W;
-   localparam FIFO_DATA_W = dma_pkg::AXI_MM_DATA_W;
+   localparam SRC_ADDR_W  = (MODE == dma_pkg::DDR_TO_HOST) ? dma_pkg::DDR_ADDR_W : dma_pkg::HOST_ADDR_W;
+   localparam DEST_ADDR_W = (MODE == dma_pkg::HOST_TO_DDR) ? dma_pkg::DDR_ADDR_W : dma_pkg::HOST_ADDR_W;
+   localparam FIFO_DATA_W = dma_pkg::AXI_MM_DATA_W + 2;
 
    logic wr_fsm_done;
-   dma_fifo_if #(.DATA_W (DEST_DATA_W)) wr_fifo_if();
-   dma_fifo_if #(.DATA_W (SRC_DATA_W))  rd_fifo_if();
+   dma_fifo_if #(.DATA_W (FIFO_DATA_W)) wr_fifo_if();
+   dma_fifo_if #(.DATA_W (FIFO_DATA_W)) rd_fifo_if();
 
 
    always_comb begin
@@ -44,10 +42,18 @@ module dma_engine #(
        dma_engine_status.response_fifo_empty = !rd_fifo_if.not_empty;
    end
 
-     write_dest_fsm #(
-      .DATA_W (DEST_DATA_W)
-   ) write_dest_fsm_inst (
-      .*
+   dma_write_engine #(
+      .DATA_W (FIFO_DATA_W)
+   ) dma_write_engine_inst (
+      .clk,
+      .reset_n,
+      .wr_fsm_done,
+      .descriptor_fifo_not_empty,
+      .descriptor,
+      .wr_dest_status,
+      .csr_control,
+      .dest_mem,
+      .rd_fifo_if
    );
    
    ofs_plat_prim_fifo_bram #(
@@ -68,10 +74,18 @@ module dma_engine #(
       .first    (rd_fifo_if.rd_data) 
    ); 
 
-   read_src_fsm #(
-      .DATA_W (SRC_DATA_W)
-   ) read_src_fsm_inst (
-      .*
+   dma_read_engine #(
+      .DATA_W (FIFO_DATA_W)
+   ) dma_read_engine_inst (
+      .clk,
+      .reset_n,
+      .wr_fsm_done,
+      .descriptor,
+      .rd_src_status, 
+      .descriptor_fifo_not_empty,
+      .descriptor_fifo_rdack,
+      .src_mem,
+      .wr_fifo_if
    );
 
 endmodule // copy_write_engine

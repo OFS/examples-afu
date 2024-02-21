@@ -24,11 +24,11 @@ DMA Top Level RTL Source Files:
 - [dma\_ddr\_selector.sv](hw/rtl/dma_ddr_selector.sv) is a simple AXI multiplexor that selects which of DDR interface to perform DMA transactions on.  
 
 ## DMA Engine Block Diagram
-- [dma\_engine.sv](hw/rtl/dma_engine.sv) is responsible for servicing each DMA transaction with the information provided by the descriptors. It contains a read and write engine, with a data FIFO in between.  When a descriptor is committed, the read engine ([read\_src\_fsm.sv](hw/rtl/read_src_fsm.sv)) will use the information in the descriptors to issue a read request, where the read data is then written to the data FIFO. The write engine ([write\_dest\_fsm.sv](hw/rtl/write_dest_fsm.sv)) will use the information in the descriptor to read the FIFO and write the data to the destination address. 
+- [dma\_engine.sv](hw/rtl/dma_engine.sv) is responsible for servicing each DMA transaction with the information provided by the descriptors. It contains a read and write engine, with a data FIFO in between.  When a descriptor is committed, the read engine ([read\_src\_fsm.sv](hw/rtl/dma_read_engine.sv)) will use the information in the descriptors to issue a read request, where the read data is then written to the data FIFO. The write engine ([write\_dest\_fsm.sv](hw/rtl/dma_write_engine.sv)) will use the information in the descriptor to read the FIFO and write the data to the destination address. 
 ![DMA Engine Block Diagram](doc/dma_engine_block_diagram.png)
 
-- [read\_src\_fsm.sv](hw/rtl/read_src_fsm.sv) is a finite state machine responsible for using the source address and length fields of the descriptor to issue a read request over AXI-MM.  Since the max burst size specified by the AXI is 256 (16kB), it will issue 16kB read request bursts until the data size requirement is met.  It then copies the data to a data FIFO so that it may be forwarded to the destination by the write engine.  
-- [write\_dest\_fsm.sv](hw/rtl/write_dest_fsm.sv) is a finite state machine responsible for using the destination and length fields of the descriptor to issue a write request over AXI-MM. Similar to the read engine, it will issue 16kB write bursts until the data size requirement is met.
+- [dma\_read\_engine.sv](hw/rtl/dma_read_engine.sv) is a finite state machine responsible for using the source address and length fields of the descriptor to issue a read request over AXI-MM.  Since the max burst size specified by the AXI is 256 (16kB), it will issue 16kB read request bursts until the data size requirement is met.  It then copies the data to a data FIFO so that it may be forwarded to the destination by the write engine.  
+- [dma\_write\_engine.sv](hw/rtl/dma_write_engine.sv) is a finite state machine responsible for using the destination and length fields of the descriptor to issue a write request over AXI-MM. Similar to the read engine, it will issue 16kB write bursts until the data size requirement is met.
 
 ## Supplimentary Hardware RTL files
 - [dma\_csr\_if.sv](hw/rtl/dma_csr_if.sv) is an interface file used for connecting to the CSR space.
@@ -38,19 +38,13 @@ DMA Top Level RTL Source Files:
 The software demonstrates the same OPAE capabilities as previous examples to initiate a DMA transaction.  
 
 ```bash
-# --transfer-size-lines: Initiating a DMA transfer with 64 Byte cache lines
-#                        Minimum = 1 (64B)
-#                        Maximum = 2048 (2MB)
-./dma --transfer-size-lines=256
-
-
-# --transfer-size-bytes: Initiating a DMA transfer with bytes 
+# --transfer-size: Initiating a DMA transfer with bytes 
 #                        Minimum = 64 
 #                        Maximum = 2097152
-./dma --transfer-size-bytes=16384
+./dma --transfer-size=16384
 ```
 
-Both examples show how to initiate a 16kB DMA transfer.  The first one is in terms of lines (256 64B lines = 16kB).  The second one explicitely sets the number of bytes.
+This example shows how to initiate a 16kB DMA transfer.
 
 Huge pages requirement for this test:
   - More than 32, 2MB huge pages need to be setup

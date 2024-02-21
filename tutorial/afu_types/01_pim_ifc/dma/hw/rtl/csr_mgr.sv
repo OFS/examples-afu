@@ -295,10 +295,10 @@ module csr_mgr #(
             // address space wrap.
             case (mmio64_reg.aw.addr[7:3])
               DMA_SRC_ADDR:           dma_csr_map.descriptor.src_addr           <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
-              DMA_DEST_ADDR:          dma_csr_map.descriptor.dest_addr          <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
-              DMA_LENGTH:             dma_csr_map.descriptor.length             <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
-              DMA_DESCRIPTOR_CONTROL: dma_csr_map.descriptor.descriptor_control <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
-              DMA_CONTROL:            dma_csr_map.control           <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.src_addr)-1 : 0];
+              DMA_DEST_ADDR:          dma_csr_map.descriptor.dest_addr          <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.dest_addr)-1 : 0];
+              DMA_LENGTH:             dma_csr_map.descriptor.length             <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.length)-1 : 0];
+              DMA_DESCRIPTOR_CONTROL: dma_csr_map.descriptor.descriptor_control <= mmio64_reg.w.data[$bits(dma_csr_map.descriptor.descriptor_control)-1 : 0];
+              DMA_CONTROL:            dma_csr_map.control                       <= mmio64_reg.w.data[$bits(dma_csr_map.control)-1 : 0];
             endcase
         end
 
