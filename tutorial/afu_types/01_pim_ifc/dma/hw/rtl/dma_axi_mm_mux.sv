@@ -90,28 +90,28 @@ module dma_axi_mm_mux (
    // In order to reduce the critical path to the DMA engine, we must add an AXI 
    // register slice at the boundary.
    ofs_plat_axi_mem_if_reg_impl #(
-     `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(src_mem),
-     .T_AW_WIDTH      ($bits(src_mem_q.aw    )), 
-     .T_W_WIDTH       ($bits(src_mem_q.w     )), 
-     .T_B_WIDTH       ($bits(src_mem_q.b     )), 
-     .T_AR_WIDTH      ($bits(src_mem_q.ar    )), 
-     .T_R_WIDTH       ($bits(src_mem_q.r     ))  
+      `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(src_mem),
+      .T_AW_WIDTH      (src_mem_q.T_AW_WIDTH ), 
+      .T_W_WIDTH       (src_mem_q.T_W_WIDTH  ), 
+      .T_B_WIDTH       (src_mem_q.T_B_WIDTH  ), 
+      .T_AR_WIDTH      (src_mem_q.T_AR_WIDTH ), 
+      .T_R_WIDTH       (src_mem_q.T_R_WIDTH  )  
    ) src_mem_reg_inst ( 
-     .mem_sink   (src_mem_q.to_sink), 
-     .mem_source (src_mem)  
+      .mem_sink   (src_mem_q.to_sink), 
+      .mem_source (src_mem)  
    );
-
-   ofs_plat_axi_mem_if_reg_impl #(
-      `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(dest_mem),
-      .T_AW_WIDTH      ($bits(dest_mem_q.aw    )), 
-      .T_W_WIDTH       ($bits(dest_mem_q.w     )), 
-      .T_B_WIDTH       ($bits(dest_mem_q.b     )), 
-      .T_AR_WIDTH      ($bits(dest_mem_q.ar    )), 
-      .T_R_WIDTH       ($bits(dest_mem_q.r     ))  
-   ) dest_mem_reg_inst ( 
+ 
+    ofs_plat_axi_mem_if_reg_impl #(
+       `OFS_PLAT_AXI_MEM_IF_REPLICATE_PARAMS(dest_mem),
+       .T_AW_WIDTH      (dest_mem_q.T_AW_WIDTH ), 
+       .T_W_WIDTH       (dest_mem_q.T_W_WIDTH  ), 
+       .T_B_WIDTH       (dest_mem_q.T_B_WIDTH  ), 
+       .T_AR_WIDTH      (dest_mem_q.T_AR_WIDTH ), 
+       .T_R_WIDTH       (dest_mem_q.T_R_WIDTH  )  
+    ) dest_mem_reg_inst ( 
       .mem_sink   (dest_mem_q.to_sink), 
       .mem_source (dest_mem)  
-   );
+    );
 
    // Instatiate a mux using the previous macros to act as a crossbar/multiplexor
    // the first 2 arguments route the DMA source AXI signals to the AXI signals at 
@@ -134,6 +134,6 @@ module dma_axi_mm_mux (
       endcase
       host_mem.aw.atop = 0;
       ddr_mem.aw.atop = 0;
-  end
+   end
 
 endmodule : dma_axi_mm_mux
