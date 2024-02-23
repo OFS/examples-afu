@@ -299,7 +299,7 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
   if (s_is_ase_sim)
     assert(transfer_size <= TEST_BUFFER_SIZE_ASE);
   else
-    assert(test_buffer_size <= TEST_BUFFER_SIZE_HW);
+    assert(transfer_size <= TEST_BUFFER_SIZE_HW);
   
   test_buffer_size = transfer_size;
 
