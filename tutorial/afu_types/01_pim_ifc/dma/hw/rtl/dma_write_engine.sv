@@ -10,8 +10,9 @@ module dma_write_engine #(
    input logic clk,
    input logic reset_n,
    output logic wr_fsm_done,
-   input logic descriptor_fifo_not_empty,
-   input  dma_pkg::t_dma_descriptor descriptor,
+   input logic wr_descriptor_fifo_not_empty,
+   output logic wr_descriptor_fifo_rdack,
+   input  dma_pkg::t_dma_descriptor wr_descriptor,
    output dma_pkg::t_dma_csr_status wr_dest_status,
    input  dma_pkg::t_dma_csr_control csr_control,
    ofs_plat_axi_mem_if.to_sink dest_mem,
@@ -25,7 +26,7 @@ module dma_write_engine #(
    localparam [AXI_LEN_W-1:0] MAX_AXI_LEN = '1;
    localparam ADDR_BYTE_IDX_W = dest_mem.ADDR_BYTE_IDX_WIDTH;
 
-   `define NUM_WR_STATES 9
+   `define NUM_WR_STATES 10
 
    enum {
       IDLE_BIT,
@@ -35,6 +36,7 @@ module dma_write_engine #(
       NOT_READY_BIT,
       FIFO_EMPTY_NOT_READY_BIT,
       RD_FIFO_WR_DEST_BIT,
+      CHECK_DESC_FIFO_BIT,
       WAIT_FOR_WR_RSP_BIT,
       ERROR_BIT
    } index;
@@ -47,6 +49,7 @@ module dma_write_engine #(
       NOT_READY            = `NUM_WR_STATES'b1<<NOT_READY_BIT,
       FIFO_EMPTY_NOT_READY = `NUM_WR_STATES'b1<<FIFO_EMPTY_NOT_READY_BIT,
       RD_FIFO_WR_DEST      = `NUM_WR_STATES'b1<<RD_FIFO_WR_DEST_BIT,
+      CHECK_DESC_FIFO      = `NUM_WR_STATES'b1<<CHECK_DESC_FIFO_BIT,
       WAIT_FOR_WR_RSP      = `NUM_WR_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
       ERROR                = `NUM_WR_STATES'b1<<ERROR_BIT,
       XXX                  = 'x
@@ -85,7 +88,7 @@ module dma_write_engine #(
    assign wr_dest_status.wr_state = state; 
    assign wlast_valid = dest_mem.wvalid & dest_mem.wready & dest_mem.w.last;
    assign need_more_wlast = (num_wlasts > (wlast_cnt + wlast_valid));
-   assign desc_length_minus_one = descriptor.length-1;
+   assign desc_length_minus_one = wr_descriptor.length-1;
 
    always_ff @(posedge clk) begin
       if (!reset_n) state <= IDLE;
@@ -96,12 +99,12 @@ module dma_write_engine #(
       next = XXX;
       unique case (1'b1)
          state[IDLE_BIT]: begin 
-           if (descriptor.descriptor_control.go & descriptor_fifo_not_empty & dest_mem.awready & rd_fifo_if.not_empty)next = SEND_WR_REQ;
+           if (wr_descriptor.descriptor_control.go & wr_descriptor_fifo_not_empty & dest_mem.awready & rd_fifo_if.not_empty)next = SEND_WR_REQ;
            else next = IDLE;
          end 
 
         state[ADDR_SETUP_BIT]:
-            if (!need_more_wlast) next = WAIT_FOR_WR_RSP;
+            if (!need_more_wlast) next = CHECK_DESC_FIFO;
             else next = SEND_WR_REQ;
 
          state[SEND_WR_REQ_BIT]:
@@ -109,14 +112,14 @@ module dma_write_engine #(
             else next = SEND_WR_REQ;
  
          state[FIFO_EMPTY_NOT_READY_BIT]:
-            if (packet_complete & (!need_more_wlast)) next = WAIT_FOR_WR_RSP;
+            if (packet_complete & (!need_more_wlast)) next = CHECK_DESC_FIFO;
             else if (!dest_mem.wready & rd_fifo_if.not_empty) next = NOT_READY;
             else if (dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY;
             else if (!dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY_NOT_READY;
             else next = RD_FIFO_WR_DEST;
          
          state[FIFO_EMPTY_BIT]:
-            if (packet_complete & (!need_more_wlast)) next = WAIT_FOR_WR_RSP;
+            if (packet_complete & (!need_more_wlast)) next = CHECK_DESC_FIFO;
             else if (!dest_mem.wready & rd_fifo_if.not_empty) next = NOT_READY;
             else if (dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY;
             else if (!dest_mem.wready & !rd_fifo_if.not_empty) next = FIFO_EMPTY_NOT_READY;
@@ -130,16 +133,22 @@ module dma_write_engine #(
             else next = RD_FIFO_WR_DEST;
 
          state[RD_FIFO_WR_DEST_BIT]:
-            if (packet_complete & (!need_more_wlast)) next = WAIT_FOR_WR_RSP;
+            if (packet_complete & (!need_more_wlast)) next = CHECK_DESC_FIFO;
             else if (wlast_valid & need_more_wlast) next = ADDR_SETUP;
             else if ((!rd_fifo_if.not_empty) & (!dest_mem.wready)) next = FIFO_EMPTY_NOT_READY;
             else if ((!rd_fifo_if.not_empty) & (dest_mem.wready)) next = FIFO_EMPTY;
             else if ((rd_fifo_if.not_empty) & (!dest_mem.wready)) next = NOT_READY;
             else next = RD_FIFO_WR_DEST;
 
+         state[CHECK_DESC_FIFO_BIT]:
+            //if (wr_descriptor_fifo_not_empty) next = WAIT_FOR_WR_RSP_BIT;
+            //else next = WAIT_FOR_WR_RSP;
+            next = WAIT_FOR_WR_RSP;
+
          state[WAIT_FOR_WR_RSP_BIT]:
+            if (wr_descriptor_fifo_not_empty) next = ADDR_SETUP; 
             if (packet_complete) next = IDLE;
-            else if (dma_pkg::ENABLE_ERROR & wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
+            //else if (dma_pkg::ENABLE_ERROR & wr_resp & ((dest_mem.b.resp==dma_pkg::SLVERR) | ((dest_mem.b.resp==dma_pkg::SLVERR)))) next = ERROR; 
             else next = WAIT_FOR_WR_RSP;
          
          state[ERROR_BIT]:
@@ -157,8 +166,10 @@ module dma_write_engine #(
          dest_mem.aw       <= '0;
          dest_mem.aw.addr  <= '0;
          saved_awaddr      <= '0;
+         wr_descriptor_fifo_rdack <= 1'b0;
       end else begin
          wlast_cnt         <= wlast_cnt + wlast_valid;
+         wr_descriptor_fifo_rdack <= 1'b0;
          unique case (1'b1)
             next[IDLE_BIT]: begin
                num_wlasts       <= state[WAIT_FOR_WR_RSP_BIT] <= '0;
@@ -173,13 +184,13 @@ module dma_write_engine #(
             
             next[SEND_WR_REQ_BIT]: begin
                num_wlasts        <= state[IDLE_BIT] ? (desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1) : num_wlasts;
-               dest_mem.aw.burst <= get_burst(descriptor.descriptor_control.mode);
+               dest_mem.aw.burst <= get_burst(wr_descriptor.descriptor_control.mode);
                dest_mem.aw.size  <= axi_size;
-               dest_mem.aw.addr  <= state[IDLE_BIT] ? descriptor.dest_addr :dest_mem.aw.addr;
+               dest_mem.aw.addr  <= state[IDLE_BIT] ? wr_descriptor.dest_addr :dest_mem.aw.addr;
                dest_mem.aw.len   <= (state[IDLE_BIT] & ((desc_length_minus_one)>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
                                     (state[RD_FIFO_WR_DEST_BIT] & need_more_wlast)            ? MAX_AXI_LEN :
                                     (state[FIFO_EMPTY_BIT] & need_more_wlast)                 ? MAX_AXI_LEN :
-                                                                                                descriptor.length[AXI_LEN_W-1:0]-1; 
+                                                                                                wr_descriptor.length[AXI_LEN_W-1:0]-1; 
             end
 
             next[NOT_READY_BIT]: begin end
@@ -192,6 +203,10 @@ module dma_write_engine #(
                saved_awaddr  <= dest_mem.aw.addr[(dma_pkg::DEST_ADDR_W)-1:ADDR_INCR_W];
             end
             
+            next[CHECK_DESC_FIFO_BIT]: begin
+               wr_descriptor_fifo_rdack <= wr_descriptor_fifo_not_empty;
+            end
+
             next[WAIT_FOR_WR_RSP_BIT]: begin end
             
             next[ERROR_BIT]: begin end
@@ -238,6 +253,8 @@ module dma_write_engine #(
             end
             
             next[RD_FIFO_WR_DEST_BIT]: begin end
+
+            next[CHECK_DESC_FIFO_BIT]: begin end
             
             next[WAIT_FOR_WR_RSP_BIT]: begin end
             
@@ -291,6 +308,12 @@ module dma_write_engine #(
             dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty & (!next[ADDR_SETUP_BIT]);
          end
 
+         state[CHECK_DESC_FIFO_BIT]: begin 
+            wr_fsm_done      = 1'b1;
+            rd_fifo_if.rd_en = 1'b0;
+            dest_mem_wvalid  = 1'b0;
+         end
+
          state[WAIT_FOR_WR_RSP_BIT]: begin 
             wr_fsm_done      = 1'b1;
             rd_fifo_if.rd_en = 1'b0;
@@ -340,6 +363,8 @@ module dma_write_engine #(
          
             next[RD_FIFO_WR_DEST_BIT]: begin end
             
+            next[CHECK_DESC_FIFO_BIT]: begin end
+
             next[WAIT_FOR_WR_RSP_BIT]: begin 
                wr_dest_clk_cnt   <= wr_dest_clk_cnt;
                wr_dest_valid_cnt <= wr_dest_valid_cnt;
@@ -359,7 +384,7 @@ module dma_write_engine #(
    integer debug;
  
    initial begin 
-      debug = 0;
+      debug = 1;
       if (debug) begin
          wr_dest_axi_file = $fopen("wr_dest_axi.txt","a");
          wr_dest_fifo_file = $fopen("wr_dest_fifo.txt","a");
@@ -370,21 +395,21 @@ module dma_write_engine #(
             begin
                @(posedge clk);
                if (dest_mem.wvalid & dest_mem.wready & debug) 
-                  $fwrite(wr_dest_axi_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, dest_mem.w.data);
+                  $fwrite(wr_dest_axi_file, "0x%0h: 0x%0h\n",wr_descriptor.descriptor_control.mode, dest_mem.w.data);
             end
             begin
                @(posedge clk);
                if (rd_fifo_if.rd_en & debug) 
-                  $fwrite(wr_dest_fifo_file, "0x%0h: 0x%0h\n",descriptor.descriptor_control.mode, rd_fifo_if.rd_data[DATA_W-3:0]);
+                  $fwrite(wr_dest_fifo_file, "0x%0h: 0x%0h\n",wr_descriptor.descriptor_control.mode, rd_fifo_if.rd_data[DATA_W-3:0]);
             end
-            begin
-               // close the debug files
-               @(posedge clk);
-               if (state[WAIT_FOR_WR_RSP_BIT] & packet_complete & debug) begin
-                  $fclose(wr_dest_axi_file);
-                  $fclose(wr_dest_fifo_file);
-               end
-            end 
+          //begin
+          //   // close the debug files
+          //   @(posedge clk);
+          //   if (state[WAIT_FOR_WR_RSP_BIT] & packet_complete & debug) begin
+          //      $fclose(wr_dest_axi_file);
+          //      $fclose(wr_dest_fifo_file);
+          //   end
+          //end 
          join
       end 
    end

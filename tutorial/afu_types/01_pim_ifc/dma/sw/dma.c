@@ -62,13 +62,17 @@ static inline uint64_t readMMIO64(uint32_t idx) {
 
 void mmio_read64(fpga_handle accel_handle, uint64_t addr, uint64_t *data,
                  const char *reg_name) {
-  fpgaReadMMIO64(accel_handle, 0, addr, data);
+  fpga_result r;
+  r = fpgaReadMMIO64(accel_handle, 0, addr, data);
+  assert(FPGA_OK == r);
   printf("Reading %s (Byte Offset=%08lx) = %08lx\n", reg_name, addr, *data);
 }
 
 void mmio_read64_silent(fpga_handle accel_handle, uint64_t addr,
                         uint64_t *data) {
-  fpgaReadMMIO64(accel_handle, 0, addr, data);
+  fpga_result r;
+  r = fpgaReadMMIO64(accel_handle, 0, addr, data);
+  assert(FPGA_OK == r);
 }
 
 // Write a 64 bit CSR. When a pointer to CSR buffer is available, write directly.
@@ -80,24 +84,32 @@ static inline void writeMMIO64(uint32_t idx, uint64_t v) {
   }
 }
 
-void print_bandwidth(e_dma_mode descriptor_mode) {
+double get_bandwidth(e_dma_mode descriptor_mode) {
   uint64_t rd_src_clk_cnt;
   uint64_t rd_src_valid_cnt;
   uint64_t wr_dest_clk_cnt;
   uint64_t wr_dest_valid_cnt;
   uint64_t wr_dest_bw;
+
   // Gather Read statistics and calculate bandwidth
   const uint64_t rd_src_perf_cntr = readMMIO64(DMA_CSR_IDX_RD_SRC_PERF_CNTR);
   rd_src_valid_cnt = rd_src_perf_cntr & 0xFFFFF; // keep lower 20 bits
   rd_src_clk_cnt = rd_src_perf_cntr >> 20;       // Keep upper 20 bits
   rd_src_clk_cnt &= 0xFFFFF;
   const double read_uptime = (rd_src_valid_cnt * 1.0) / (rd_src_clk_cnt * 1.0);
+  const double read_bandwidth = read_uptime * MAX_TRPT_BYTES / 1000.0;
   if (descriptor_mode == ddr_to_host) {
     printf("\nAFU Reading DDR ");
   } else {
     printf("\nAFU Reading Host ");
   }
   printf("BW = %f GB/S\n", read_uptime * MAX_TRPT_BYTES / 1000.0);
+  if(read_uptime * MAX_TRPT_BYTES < MIN_TRPT_BYTES) {
+     fprintf(stderr, "Error: Minimum bandwidth requirement not met. Please \
+                      ensure your device meets the minimum bandwidth \
+                      of 8.2 GBps for optimal performance.\n");
+     return -1;
+  }
 
   // Gather Write statistics and calculate bandwidth
   const uint64_t wr_dest_perf_cntr = readMMIO64(DMA_CSR_IDX_WR_DEST_PERF_CNTR);
@@ -106,12 +118,21 @@ void print_bandwidth(e_dma_mode descriptor_mode) {
   wr_dest_clk_cnt &= 0xFFFFF;
   const double write_uptime =
       (wr_dest_valid_cnt * 1.0) / (wr_dest_clk_cnt * 1.0);
+  const double write_bandwidth = write_uptime * MAX_TRPT_BYTES / 1000.0;
   if (descriptor_mode == ddr_to_host) {
     printf("Host to AFU ");
   } else {
     printf("DDR to AFU ");
   }
-  printf("Write BW = %f GB/S\n\n", write_uptime * MAX_TRPT_BYTES / 1000.0);
+  printf("Write BW = %f GB/S\n\n", write_bandwidth);
+  if(write_uptime * MAX_TRPT_BYTES < MIN_TRPT_BYTES) {
+     fprintf(stderr, "Error: Minimum bandwidth requirement not met. Please \
+                      ensure your device meets the minimum bandwidth \
+                      of 8.2 GBps for optimal performance.\n");
+     return -1;
+  }
+  double average_bw = (read_bandwidth + write_bandwidth)/2; 
+  return average_bw;
 }
 
 void print_csrs() {
@@ -237,7 +258,9 @@ void dma_transfer(fpga_handle accel_handle, e_dma_mode mode, uint64_t dev_src,
 
   // send descriptor
   start = clock();
-  send_descriptor(accel_handle, DMA_DESC_BASE, desc);
+  for (int i=0; i<2; i++) {
+     send_descriptor(accel_handle, DMA_DESC_BASE, desc);
+  }
 
   mmio_read64_silent(accel_handle, DMA_STATUS_BASE, &mmio_data);
   // If the descriptor buffer is empty, then we are done
@@ -313,7 +336,7 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
   // Basic DMA transfer, Host to DDR
   dma_transfer(accel_handle, host_to_ddr, dma_buf_iova | DMA_HOST_MASK, 0,
                dma_len, verbose);
-  print_bandwidth(host_to_ddr);
+  double h2a_bw = get_bandwidth(host_to_ddr);
 
   // DMA Transfer
   memset((void *)dma_buf_ptr, 0x0, DMA_BUFFER_SIZE);
@@ -322,7 +345,12 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
   dma_transfer(accel_handle, ddr_to_host, 0, dma_buf_iova | DMA_HOST_MASK,
                dma_len, verbose);
 
-  print_bandwidth(ddr_to_host);
+  double a2h_bw = get_bandwidth(ddr_to_host);
+
+  if ((a2h_bw == -1) || h2a_bw == -1) {
+     fprintf(stderr, "Error: Minimum bandwidth requirement violation detected.\n");
+     return -1; 
+  }
 
   // Check expected result
   if (memcmp((void *)dma_buf_ptr, (void *)expected_result, test_buffer_size) !=
@@ -335,6 +363,8 @@ int run_basic_ddr_dma_test(fpga_handle accel_handle, int transfer_size, bool ver
 
   release_buf:
     res = fpgaReleaseBuffer(accel_handle, dma_buf_wsid); 
+
+  return 1;
 }
 
 int dma(fpga_handle accel_handle, bool is_ase_sim, uint32_t transfer_size,
@@ -355,5 +385,5 @@ int dma(fpga_handle accel_handle, bool is_ase_sim, uint32_t transfer_size,
     s_mmio_buf = tmp_ptr;
   }
 
-  run_basic_ddr_dma_test(s_accel_handle, transfer_size, verbose);
+  return run_basic_ddr_dma_test(s_accel_handle, transfer_size, verbose);
 }

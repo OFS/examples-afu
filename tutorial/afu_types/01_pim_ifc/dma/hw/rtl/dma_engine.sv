@@ -17,8 +17,8 @@ module dma_engine #(
       input  logic  clk,
       input  logic  reset_n,
       input  logic descriptor_fifo_not_empty,
-      output logic descriptor_fifo_rdack,
       input  dma_pkg::t_dma_descriptor descriptor,
+      output logic descriptor_fifo_rdack,
       ofs_plat_axi_mem_if.to_sink src_mem,
       ofs_plat_axi_mem_if.to_sink dest_mem,
 
@@ -35,7 +35,9 @@ module dma_engine #(
    logic wr_fsm_done;
    dma_fifo_if #(.DATA_W (FIFO_DATA_W)) wr_fifo_if();
    dma_fifo_if #(.DATA_W (FIFO_DATA_W)) rd_fifo_if();
-
+   dma_fifo_if #(.DATA_W ($bits(dma_pkg::t_dma_descriptor))) rd_eng_desc_fifo_wr_if();
+   dma_fifo_if #(.DATA_W ($bits(dma_pkg::t_dma_descriptor))) wr_eng_desc_fifo_rd_if();
+   
 
    always_comb begin
        dma_engine_status.response_fifo_full = !wr_fifo_if.not_full;
@@ -47,9 +49,8 @@ module dma_engine #(
    ) dma_write_engine_inst (
       .clk,
       .reset_n,
+      .wr_eng_desc_fifo_rd_if,
       .wr_fsm_done,
-      .descriptor_fifo_not_empty,
-      .descriptor,
       .wr_dest_status,
       .csr_control,
       .dest_mem,
@@ -74,6 +75,14 @@ module dma_engine #(
       .first    (rd_fifo_if.rd_data) 
    ); 
 
+    dma_descriptor_buffer (
+    ) dma_descriptor_buffor_inst (
+       .clk,
+       .reset_n,
+       .desc_fifo_wr_if (rd_eng_desc_fifo_wr_if),
+       .desc_fifo_rd_if (wr_eng_desc_fifo_rd_if),
+    ); 
+
    dma_read_engine #(
       .DATA_W (FIFO_DATA_W)
    ) dma_read_engine_inst (
@@ -85,7 +94,8 @@ module dma_engine #(
       .descriptor_fifo_not_empty,
       .descriptor_fifo_rdack,
       .src_mem,
-      .wr_fifo_if
+      .wr_fifo_if,
+      .rd_eng_desc_fifo_wr_if
    );
 
 endmodule // copy_write_engine

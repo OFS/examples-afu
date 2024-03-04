@@ -15,7 +15,8 @@ module dma_read_engine #(
    input logic descriptor_fifo_not_empty,
    output logic descriptor_fifo_rdack,
    ofs_plat_axi_mem_if.to_sink src_mem,
-   dma_fifo_if.wr_out  wr_fifo_if
+   dma_fifo_if.wr_out wr_fifo_if,
+   dma_fifo_if.wr_out rd_eng_desc_fifo_wr_if
 );
 
    localparam AXI_LEN_W = dma_pkg::AXI_LEN_W;
@@ -24,24 +25,26 @@ module dma_read_engine #(
    localparam AXI_SIZE_W = $bits(src_mem.ar.size);
    localparam NUM_PENDING_RDS = 2;
 
-   `define NUM_RD_STATES 6 
+   `define NUM_RD_STATES 7
 
    enum {
       IDLE_BIT,
       ADDR_SETUP_BIT,
       SEND_RD_REQ_BIT,
+      WR_DESCRIPTOR_BIT,
       CP_RSP_TO_FIFO_BIT,
       WAIT_FOR_WR_RSP_BIT,
       ERROR_BIT
    } index;
 
    enum logic [`NUM_RD_STATES-1:0] {
-      IDLE            = `NUM_RD_STATES'b1<<IDLE_BIT,
-      ADDR_SETUP      = `NUM_RD_STATES'b1<<ADDR_SETUP_BIT,
-      SEND_RD_REQ     = `NUM_RD_STATES'b1<<SEND_RD_REQ_BIT,
-      CP_RSP_TO_FIFO  = `NUM_RD_STATES'b1<<CP_RSP_TO_FIFO_BIT,
-      WAIT_FOR_WR_RSP = `NUM_RD_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
-      ERROR           = `NUM_RD_STATES'b1<<ERROR_BIT,
+      IDLE              = `NUM_RD_STATES'b1<<IDLE_BIT,
+      ADDR_SETUP        = `NUM_RD_STATES'b1<<ADDR_SETUP_BIT,
+      SEND_RD_REQ       = `NUM_RD_STATES'b1<<SEND_RD_REQ_BIT,
+      WR_DESCRIPTOR_BIT = `NUM_RD_STATES'b1<<WR_DESCRIPTOR_BIT, 
+      CP_RSP_TO_FIFO    = `NUM_RD_STATES'b1<<CP_RSP_TO_FIFO_BIT,
+      WAIT_FOR_WR_RSP   = `NUM_RD_STATES'b1<<WAIT_FOR_WR_RSP_BIT,
+      ERROR             = `NUM_RD_STATES'b1<<ERROR_BIT,
       XXX = 'x
    } state, next;
 
@@ -90,16 +93,18 @@ module dma_read_engine #(
             else next = IDLE;
          end 
 
-         state[ADDR_SETUP_BIT]:
-            if (src_mem.arready & ((rd_req_cnt-rlast_cnt)<NUM_PENDING_RDS))
-               next = SEND_RD_REQ; 
-            else 
-               next = ADDR_SETUP;
+         state[ADDR_SETUP_BIT]: 
+            if (src_mem.arready & ((rd_req_cnt-rlast_cnt)<NUM_PENDING_RDS)) next = SEND_RD_REQ; 
+            else next = ADDR_SETUP;
 
          state[SEND_RD_REQ_BIT]:
             if ((rd_req_cnt+1) < num_rd_reqs) next = ADDR_SETUP; 
-            else if ((rd_req_cnt+1) >= num_rd_reqs) next = CP_RSP_TO_FIFO;
+            else if (((rd_req_cnt+1) >= num_rd_reqs) & !descriptor_in_use) next = WRITE_DECRIPTOR;
+            else if (((rd_req_cnt+1) >= num_rd_reqs) & descriptor_in_use) next = CP_RSP_TO_FIFO;
             else next = SEND_RD_REQ;
+
+         state[WRITE_DECRIPTOR_BIT]:
+            next = CP_RSP_TO_FIFO;
 
          state[CP_RSP_TO_FIFO_BIT]:
             if (rlast_valid & (num_rlasts == (rlast_cnt+1))) next = WAIT_FOR_WR_RSP;
@@ -110,6 +115,8 @@ module dma_read_engine #(
             else next = WAIT_FOR_WR_RSP;
       endcase
    end
+ 
+   logic descriptor_in_use;
 
    always_ff @(posedge clk) begin
       if (!reset_n) begin
@@ -122,10 +129,15 @@ module dma_read_engine #(
          wr_fifo_if.wr_en  <= 1'b0;
          rd_req_cnt        <= 0;
          num_rd_reqs       <= '0;
+         rd_eng_desc_fifo_wr_if.wr_data <= '0;
+         rd_eng_desc_fifo_wr_if.wr_en <= '0;
+         descriptor_in_use <= 1'b0;
       end else begin
          rlast_cnt          <= rlast_cnt + rlast_valid;
          wr_fifo_if.wr_en   <= !wr_fifo_if.almost_full & src_mem.rvalid & src_mem.rready;
          wr_fifo_if.wr_data <= {packet_complete, src_mem.r.last, src_mem.r.data};
+         rd_eng_desc_fifo_wr_if.wr_en <= '0;
+         rd_eng_desc_fifo_wr_if.wr_data <= '0;
   
          unique case (1'b1)
             next[IDLE_BIT]: begin
@@ -133,28 +145,35 @@ module dma_read_engine #(
                wr_fifo_if.wr_en   <= 1'b0;
                src_mem.arvalid    <= 1'b0;
                rlast_cnt          <= '0;
+               descriptor_in_use <= 1'b0;
             end 
 
             next[ADDR_SETUP_BIT]: begin
-                src_mem.arvalid    <= 1'b0;
-                num_rd_reqs        <= desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1;
-                num_rlasts         <= desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1;
-                rd_req_cnt         <= state[SEND_RD_REQ_BIT] ? (rd_req_cnt+1) : rd_req_cnt;
-                src_mem.ar.addr    <= state[SEND_RD_REQ_BIT] ? src_mem.ar.addr + ADDR_INCR :
-                                      state[IDLE_BIT]       ? descriptor.src_addr         : 
-                                                              src_mem.ar.addr;
+                src_mem.arvalid <= 1'b0;
+                num_rd_reqs     <= state[SEND_RD_REQ_BIT] ? num_rd_reqs : desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1;
+                num_rlasts      <= state[SEND_RD_REQ_BIT] ? num_rlasts  : desc_length_minus_one[(dma_pkg::LENGTH_W)-1:AXI_LEN_W]+1;
+                rd_req_cnt      <= state[SEND_RD_REQ_BIT] ? (rd_req_cnt+1) : rd_req_cnt;
+                src_mem.ar.addr <= state[SEND_RD_REQ_BIT] ? src_mem.ar.addr + ADDR_INCR :
+                                   state[IDLE_BIT]        ? descriptor.src_addr         : 
+                                                            src_mem.ar.addr;
             end
 
             next[SEND_RD_REQ_BIT]: begin
-               src_mem.arvalid    <= 1'b1;
-               src_mem.ar.addr    <= state[IDLE_BIT] ? descriptor.src_addr : src_mem.ar.addr;
-               src_mem.ar.len     <= ((rd_req_cnt+1) < num_rd_reqs) ? MAX_AXI_LEN : (descriptor.length[AXI_LEN_W-1:0]-1);
-               src_mem.ar.burst   <= get_burst(descriptor.descriptor_control.mode);
-               src_mem.ar.size    <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
+               src_mem.arvalid  <= 1'b1;
+               src_mem.ar.addr  <= src_mem.ar.addr;
+               src_mem.ar.len   <= ((rd_req_cnt+1) < num_rd_reqs) ? MAX_AXI_LEN : (descriptor.length[AXI_LEN_W-1:0]-1);
+               src_mem.ar.burst <= get_burst(descriptor.descriptor_control.mode);
+               src_mem.ar.size  <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
+            end
+
+            next[WR_DESCRIPTOR] begin
+               rd_eng_desc_fifo_wr_if.wr_en   <= 1'b1;
+               rd_eng_desc_fifo_wr_if.wr_data <= descriptor;
+               descriptor_in_use <= 1'b1;
             end
 
             next[CP_RSP_TO_FIFO_BIT]: begin
-               src_mem.arvalid    <= 1'b0;
+               src_mem.arvalid          <= 1'b0;
             end
             
             next[WAIT_FOR_WR_RSP_BIT]: begin
@@ -209,6 +228,7 @@ module dma_read_engine #(
          rd_src_status.busy <= 1'b1;
          rd_src_clk_cnt   <= (rd_src_valid_cnt!=0) ? rd_src_clk_cnt + 1 : rd_src_valid_cnt;
          rd_src_valid_cnt <= rd_src_valid_cnt + (src_mem.rvalid & src_mem.rready);
+         rd_src_status.descriptor_count <= rd_src_status.descriptor_count + descriptor_fifo_rdack;
   
          unique case (1'b1)
              next[IDLE_BIT]: begin
@@ -224,14 +244,13 @@ module dma_read_engine #(
             end
             
             next[SEND_RD_REQ_BIT]: begin end
- 
+
             next[CP_RSP_TO_FIFO_BIT]: begin end
             
             next[WAIT_FOR_WR_RSP_BIT]: begin 
                //Stop the counter while we're waiting for the dma_write_engine to complete
                rd_src_clk_cnt   <= rd_src_clk_cnt;
                rd_src_valid_cnt <= rd_src_valid_cnt;
-               rd_src_status.descriptor_count <= rd_src_status.descriptor_count + descriptor_fifo_rdack;
             end
  
             next[ERROR_BIT]: begin end
@@ -246,7 +265,7 @@ module dma_read_engine #(
    integer debug;
  
    initial begin 
-      debug = 0;
+      debug = 1;
       if (debug) begin
       rd_src_axi_file = $fopen("rd_src_axi.txt","a");
       rd_src_fifo_file = $fopen("rd_src_fifo.txt","a");
@@ -264,14 +283,14 @@ module dma_read_engine #(
                 if (src_mem.rvalid & src_mem.rready & debug) 
                    $fwrite(rd_src_axi_file, "0x%0h: 0x%0h\n", descriptor.descriptor_control.mode,src_mem.r.data);
             end
-            begin
-               // close the debug files
-               @(posedge clk);
-               if (state[WAIT_FOR_WR_RSP_BIT] & wr_fsm_done & debug) begin
-                  $fclose(rd_src_axi_file);
-                  $fclose(rd_src_fifo_file);
-               end
-            end 
+          //begin
+          //   // close the debug files
+          //   @(posedge clk);
+          //   if (state[WAIT_FOR_WR_RSP_BIT] & wr_fsm_done & debug) begin
+          //      $fclose(rd_src_axi_file);
+          //      $fclose(rd_src_fifo_file);
+          //   end
+          //end 
          join
       end
    end

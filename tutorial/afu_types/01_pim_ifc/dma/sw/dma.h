@@ -5,8 +5,9 @@
 #define __DMA_H__
 
 #define USE_ASE
-#define CLOCK_RATE_MHZ                 400 //400MHz
+#define CLOCK_RATE_MHZ                 470 // 470MHz
 #define MAX_TRPT_BYTES                 (CLOCK_RATE_MHZ * 64) //64 Bytes per AXI read/write.
+#define MIN_TRPT_BYTES                 8200000000 // 8.2 GB/s -> Nominal BW is 8.7GB/s
 #define DMA_CSR_IDX_DFH                0x0
 #define DMA_CSR_IDX_GUID_L             0x1
 #define DMA_CSR_IDX_GUID_H             0x2

@@ -89,22 +89,29 @@ module dma_top #(
         .dma_csr_status
     );
 
-    ofs_plat_prim_fifo_bram #(
-      .N_DATA_BITS  ($bits(dma_pkg::t_dma_descriptor)),
-      .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
-    ) descriptor_fifo_inst (
-      .clk,
-      .reset_n,
+//  ofs_plat_prim_fifo_bram #(
+//    .N_DATA_BITS  ($bits(dma_pkg::t_dma_descriptor)),
+//    .N_ENTRIES    (dma_pkg::DMA_DESCRIPTOR_FIFO_DEPTH)
+//  ) descriptor_fifo_inst (
+//    .clk,
+//    .reset_n,
 
-      .enq_data(wr_desc_fifo_if.wr_data),
-      .enq_en(wr_desc_fifo_if.wr_en),
-      .notFull(wr_desc_fifo_if.not_full),
-      .almostFull(),
+//    .enq_data(wr_desc_fifo_if.wr_data),
+//    .enq_en(wr_desc_fifo_if.wr_en),
+//    .notFull(wr_desc_fifo_if.not_full),
+//    .almostFull(),
 
-      .first(rd_desc_fifo_if.rd_data),
-      .deq_en(rd_desc_fifo_if.rd_en & !dma_csr_map.control.stop_descriptors),
-      .notEmpty(rd_desc_fifo_if.not_empty)
-    );
+//    .first(rd_desc_fifo_if.rd_data),
+//    .deq_en(rd_desc_fifo_if.rd_en & !dma_csr_map.control.stop_descriptors),
+//    .notEmpty(rd_desc_fifo_if.not_empty)
+//  );
+    dma_descriptor_buffer (
+    ) dma_descriptor_buffer_inst (
+       .clk,
+       .reset_n,
+       .desc_fifo_wr_if (wr_desc_fifo_if),
+       .desc_fifo_rd_if (rd_desc_fifo_if),
+    ); 
 
 
     // ====================================================================
