@@ -99,12 +99,14 @@ module dma_write_engine #(
            else next = IDLE;
          end 
 
-        state[ADDR_SETUP_BIT]:
-            if (!need_more_wlast & dest_mem.awready) next = WAIT_FOR_WR_RSP;
-            else next = SEND_WR_REQ;
-
+         state[ADDR_SETUP_BIT]:=
+           if (!need_more_wlast) next = WAIT_FOR_WR_RSP;
+           else next = SEND_WR_REQ;
+         
+         
          state[SEND_WR_REQ_BIT]:
-            next = FIFO_EMPTY;
+           if (dest_mem.awvalid & dest_mem.awready) next = FIFO_EMPTY;
+           else next = SEND_WR_REQ;
  
          state[FIFO_EMPTY_NOT_READY_BIT]:
             if (packet_complete & (!need_more_wlast)) next = WAIT_FOR_WR_RSP;
@@ -273,7 +275,7 @@ module dma_write_engine #(
          end
 
          state[SEND_WR_REQ_BIT]:begin
-            dest_mem.awvalid = 1'b1;
+            dest_mem.awvalid = dest_mem.awready;
             rd_fifo_if.rd_en = 1'b0;
             dest_mem_wvalid  = 1'b0;
          end
