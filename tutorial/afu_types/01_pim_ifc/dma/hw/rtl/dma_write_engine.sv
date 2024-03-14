@@ -274,8 +274,8 @@ module dma_write_engine #(
 
          state[SEND_WR_REQ_BIT]:begin
             dest_mem.awvalid = 1'b1;
-            rd_fifo_if.rd_en = 1'b0; 
-            dest_mem_wvalid  = 1'b0; 
+            rd_fifo_if.rd_en = 1'b0;
+            dest_mem_wvalid  = 1'b0;
          end
 
          state[FIFO_EMPTY_NOT_READY_BIT]: begin end
