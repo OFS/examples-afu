@@ -1,10 +1,7 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: MIT
-//
 
 `include "ofs_plat_if.vh"
-
-`timescale 1ns/1ns
 
 module dma_write_engine #(
    parameter DATA_W = 512
@@ -108,8 +105,6 @@ module dma_write_engine #(
 
          state[SEND_WR_REQ_BIT]:
             next = FIFO_EMPTY;
-          //if (dest_mem.awvalid) next = FIFO_EMPTY;
-          //else next = SEND_WR_REQ;
  
          state[FIFO_EMPTY_NOT_READY_BIT]:
             if (packet_complete & (!need_more_wlast)) next = WAIT_FOR_WR_RSP;
@@ -259,8 +254,8 @@ module dma_write_engine #(
       dest_mem.awvalid                = 1'b0;
       packet_complete                 = 1'b0;
       dest_mem_wlast                  = 1'b0;
-      dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty;
       rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty;
+      dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty;
  
       {packet_complete, 
          dest_mem_wlast, 
