@@ -3,6 +3,7 @@
 
 `include "ofs_plat_if.vh"
 
+
 module dma_write_engine #(
    parameter DATA_W = 512
 )(
@@ -99,11 +100,10 @@ module dma_write_engine #(
            else next = IDLE;
          end 
 
-         state[ADDR_SETUP_BIT]:=
+         state[ADDR_SETUP_BIT]:
            if (!need_more_wlast) next = WAIT_FOR_WR_RSP;
            else next = SEND_WR_REQ;
-         
-         
+ 
          state[SEND_WR_REQ_BIT]:
            if (dest_mem.awvalid & dest_mem.awready) next = FIFO_EMPTY;
            else next = SEND_WR_REQ;
