@@ -1,8 +1,10 @@
 // Copyright (C) 2022 Intel Corporation
 // SPDX-License-Identifier: MIT
+//
 
 `include "ofs_plat_if.vh"
 
+`timescale 1ns/1ns
 
 module dma_write_engine #(
    parameter DATA_W = 512
@@ -101,12 +103,13 @@ module dma_write_engine #(
          end 
 
         state[ADDR_SETUP_BIT]:
-            if (!need_more_wlast) next = WAIT_FOR_WR_RSP;
+            if (!need_more_wlast & dest_mem.awready) next = WAIT_FOR_WR_RSP;
             else next = SEND_WR_REQ;
 
          state[SEND_WR_REQ_BIT]:
-            if (dest_mem.awvalid & dest_mem.awready) next = FIFO_EMPTY;
-            else next = SEND_WR_REQ;
+            next = FIFO_EMPTY;
+          //if (dest_mem.awvalid) next = FIFO_EMPTY;
+          //else next = SEND_WR_REQ;
  
          state[FIFO_EMPTY_NOT_READY_BIT]:
             if (packet_complete & (!need_more_wlast)) next = WAIT_FOR_WR_RSP;
@@ -256,8 +259,8 @@ module dma_write_engine #(
       dest_mem.awvalid                = 1'b0;
       packet_complete                 = 1'b0;
       dest_mem_wlast                  = 1'b0;
-      rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty;
       dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty;
+      rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty;
  
       {packet_complete, 
          dest_mem_wlast, 
@@ -275,9 +278,9 @@ module dma_write_engine #(
          end
 
          state[SEND_WR_REQ_BIT]:begin
-            dest_mem.awvalid = dest_mem.awready;
-            rd_fifo_if.rd_en = 1'b0;
-            dest_mem_wvalid  = 1'b0;
+            dest_mem.awvalid = 1'b1;
+            rd_fifo_if.rd_en = 1'b0; 
+            dest_mem_wvalid  = 1'b0; 
          end
 
          state[FIFO_EMPTY_NOT_READY_BIT]: begin end
@@ -287,8 +290,8 @@ module dma_write_engine #(
          state[NOT_READY_BIT]:begin end
 
          state[RD_FIFO_WR_DEST_BIT]: begin 
-            rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty & (!next[ADDR_SETUP_BIT]);
-            dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty & (!next[ADDR_SETUP_BIT]);
+            rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty & !(wlast_valid & need_more_wlast);
+            dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty & !(wlast_valid & need_more_wlast);
          end
 
          state[WAIT_FOR_WR_RSP_BIT]: begin 
