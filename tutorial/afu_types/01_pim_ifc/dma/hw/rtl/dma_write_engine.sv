@@ -176,7 +176,7 @@ module dma_write_engine #(
                dest_mem.aw.burst <= get_burst(descriptor.descriptor_control.mode);
                dest_mem.aw.size  <= axi_size;
                dest_mem.aw.addr  <= state[IDLE_BIT] ? descriptor.dest_addr :dest_mem.aw.addr;
-               dest_mem.aw.len   <= (state[IDLE_BIT] & ((desc_length_minus_one)>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
+               dest_mem.aw.len[AXI_LEN_W-1:0]   <= (state[IDLE_BIT] & ((desc_length_minus_one)>MAX_AXI_LEN)) ? MAX_AXI_LEN : 
                                     (state[RD_FIFO_WR_DEST_BIT] & need_more_wlast)            ? MAX_AXI_LEN :
                                     (state[FIFO_EMPTY_BIT] & need_more_wlast)                 ? MAX_AXI_LEN :
                                                                                                 descriptor.length[AXI_LEN_W-1:0]-1; 

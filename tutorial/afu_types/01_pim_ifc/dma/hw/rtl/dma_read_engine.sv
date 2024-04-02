@@ -148,7 +148,8 @@ module dma_read_engine #(
             next[SEND_RD_REQ_BIT]: begin
                src_mem.arvalid    <= 1'b1;
                src_mem.ar.addr    <= state[IDLE_BIT] ? descriptor.src_addr : src_mem.ar.addr;
-               src_mem.ar.len     <= ((rd_req_cnt+1) < num_rd_reqs) ? MAX_AXI_LEN : (descriptor.length[AXI_LEN_W-1:0]-1);
+               src_mem.ar.len[AXI_LEN_W-1:0]     <= ((rd_req_cnt+1) < num_rd_reqs) ? MAX_AXI_LEN : (descriptor.length[AXI_LEN_W-1:0]-1);
+               //src_mem.ar.len     <= ((rd_req_cnt+1) < num_rd_reqs) ? MAX_AXI_LEN : (descriptor.length[AXI_LEN_W-1:0]-1);
                src_mem.ar.burst   <= get_burst(descriptor.descriptor_control.mode);
                src_mem.ar.size    <= src_mem.ADDR_BYTE_IDX_WIDTH; // 111 indicates 128bytes per spec
             end
