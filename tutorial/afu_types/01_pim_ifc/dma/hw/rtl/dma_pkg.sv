@@ -98,7 +98,7 @@ package dma_pkg;
     localparam DEST_ADDR_W = SRC_ADDR_W;
     localparam LENGTH_W = 20;
     localparam AXI_MM_DATA_W = 512;
-    localparam AXI_LEN_W = 8;
+    localparam AXI_LEN_W = 8; // n6001: 8; d5005: 5
     localparam AXI_MM_DATA_W_BYTES = AXI_MM_DATA_W / 8;
     localparam DDR_DATA_W = AXI_MM_DATA_W;
     localparam HOST_DATA_W = AXI_MM_DATA_W;
