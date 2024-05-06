@@ -52,7 +52,7 @@ module copy_engine_top
         // the AXI-MM host_mem. The PIM will map AXI-MM bursts to legal
         // host channel bursts, including guaranteeing to satisfy any
         // necessary address alignment.
-        .MAX_BURST_CNT(1 << host_mem.BURST_CNT_WIDTH_)
+        .MAX_BURST_CNT(1 << host_mem.BURST_CNT_WIDTH)
         )
       csr_mgr_inst
        (
