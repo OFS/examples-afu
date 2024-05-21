@@ -5,18 +5,17 @@
 #include <chrono>
 #include <iostream>
 #include <numeric>
-#include <chrono>
 #include <thread>
 
-#include <sycl/sycl.hpp>
 #include <sycl/ext/intel/fpga_extensions.hpp>
+#include <sycl/sycl.hpp>
 
 #include "exception_handler.hpp"
 
 // The type that will stream through the IO pipe. When using real IO pipes,
 // make sure the width of this datatype matches the width of the IO pipe, which
 // you can find in the BSP XML file.
-//using IOPipeType = int;
+// using IOPipeType = int;
 using IOPipeType = unsigned long int;
 
 #include "LoopbackTest.hpp"
@@ -48,7 +47,7 @@ int main() {
     auto selector = sycl::ext::intel::fpga_simulator_selector_v;
 #elif FPGA_HARDWARE
     auto selector = sycl::ext::intel::fpga_selector_v;
-#else  // #if FPGA_EMULATOR
+#else // #if FPGA_EMULATOR
     auto selector = sycl::ext::intel::fpga_emulator_selector_v;
 #endif
 
@@ -67,13 +66,12 @@ int main() {
     // run the loopback example system
     // see 'LoopbackTest.hpp'
     std::cout << "Running loopback test\n";
-    passed &= 
-      RunLoopbackSystem<IOPipeType, kUseUSMHostAllocation>(q, count);
+    passed &= RunLoopbackSystem<IOPipeType, kUseUSMHostAllocation>(q, count);
 
     // run the side channel example system
     // see 'SideChannelTest.hpp'
     /*std::cout << "Running side channel test\n";
-    passed &= 
+    passed &=
       RunSideChannelsSystem<IOPipeType, kUseUSMHostAllocation>(q, count);
     */
   } catch (exception const &e) {
@@ -98,4 +96,3 @@ int main() {
     return 1;
   }
 }
-

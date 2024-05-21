@@ -38,11 +38,10 @@
 //
 namespace fpga_tools {
 
-template<typename T, int rom_depth>
-struct ROMBase {
+template <typename T, int rom_depth> struct ROMBase {
   // ensure a positive depth
   static_assert(rom_depth > 0);
-  
+
   // allows the depth of the ROM to be queried
   static constexpr int depth = rom_depth;
 
@@ -53,8 +52,8 @@ struct ROMBase {
   // using a user specified Functor. NOTE: the functor must be constexpr,
   // which can be achieved with a lambda or by marking the operator() function
   // as constexpr.
-  template<typename InitFunctor>
-  constexpr ROMBase(const InitFunctor& func) : data_() {
+  template <typename InitFunctor>
+  constexpr ROMBase(const InitFunctor &func) : data_() {
     static_assert(std::is_invocable_r_v<T, InitFunctor, int>);
 
     for (int i = 0; i < rom_depth; i++) {
@@ -63,12 +62,12 @@ struct ROMBase {
   }
 
   // only define a const operator[], since this is a ROM
-  const T& operator[](int i) const { return data_[i]; }
+  const T &operator[](int i) const { return data_[i]; }
 
- protected:
+protected:
   T data_[rom_depth];
 };
 
-}  // namespace fpga_tools
+} // namespace fpga_tools
 
 #endif /* __ROM_BASE_HPP__ */

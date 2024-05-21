@@ -136,7 +136,7 @@ void PipeToMemoryNoRemainder(PtrT out_ptr, size_t count) {
   }
 }
 
-}  // namespace detail
+} // namespace detail
 
 //
 // Streams data from memory to a SYCL pipe 1 element a time
@@ -231,6 +231,6 @@ void PipeToMemory(PtrT out_ptr, size_t full_count, size_t remainder_count) {
   }
 }
 
-}  // namespace fpga_tools
+} // namespace fpga_tools
 
 #endif /* __MEMORY_UTILS_HPP__ */

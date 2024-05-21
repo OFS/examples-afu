@@ -52,7 +52,7 @@ namespace fpga_tools {
 //    F         - the function to run for each index (i.e. the lambda)
 //
 template <class ItType, ItType... inds, class F>
-constexpr void UnrolledLoop(std::integer_sequence<ItType, inds...>, F&& f) {
+constexpr void UnrolledLoop(std::integer_sequence<ItType, inds...>, F &&f) {
   (f(std::integral_constant<ItType, inds>{}), ...);
 }
 
@@ -60,8 +60,7 @@ constexpr void UnrolledLoop(std::integer_sequence<ItType, inds...>, F&& f) {
 // Convience implementation (A)
 // performs UnrolledLoop in range [0,n) with iterator of type ItType
 //
-template <class ItType, ItType n, class F>
-constexpr void UnrolledLoop(F&& f) {
+template <class ItType, ItType n, class F> constexpr void UnrolledLoop(F &&f) {
   UnrolledLoop(std::make_integer_sequence<ItType, n>{}, std::forward<F>(f));
 }
 
@@ -69,8 +68,7 @@ constexpr void UnrolledLoop(F&& f) {
 // Convenience implementation (B)
 // performs UnrolledLoop in range [0,n) with an iterator of type std::size_t
 //
-template <std::size_t n, class F>
-constexpr void UnrolledLoop(F&& f) {
+template <std::size_t n, class F> constexpr void UnrolledLoop(F &&f) {
   UnrolledLoop(std::make_index_sequence<n>{}, std::forward<F>(f));
 }
 
@@ -82,7 +80,7 @@ constexpr void UnrolledLoop(F&& f) {
 //        if end<=start, sequence is start,start-1,...,end+1
 //
 template <class ItType, ItType start, ItType end, class F>
-constexpr void UnrolledLoop(F&& f) {
+constexpr void UnrolledLoop(F &&f) {
   UnrolledLoop(make_integer_range<ItType, start, end>{}, std::forward<F>(f));
 }
 
@@ -94,10 +92,10 @@ constexpr void UnrolledLoop(F&& f) {
 //        if end<=start, sequence is start,start-1,...,end+1
 //
 template <std::size_t start, std::size_t end, class F>
-constexpr void UnrolledLoop(F&& f) {
+constexpr void UnrolledLoop(F &&f) {
   UnrolledLoop(make_index_range<start, end>{}, std::forward<F>(f));
 }
 
-}  // namespace fpga_tools
+} // namespace fpga_tools
 
 #endif /* __UNROLLEDLOOP_HPP__ */
