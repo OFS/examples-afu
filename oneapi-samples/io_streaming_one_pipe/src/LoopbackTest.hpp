@@ -41,10 +41,12 @@ event SubmitLoopbackKernel(queue &q, size_t count, bool &passed) {
   std::cout << "inside SubmitLoopbackKernel \n";
   unsigned long int *datain_host = (unsigned long int *)malloc(
       OUTER_LOOP_COUNT * INNER_LOOP_COUNT * sizeof(unsigned long int));
+
   for (size_t count = 0; count < (OUTER_LOOP_COUNT * INNER_LOOP_COUNT);
        count++) {
     datain_host[count] = count;
   }
+
   unsigned long int *dataout_host = (unsigned long int *)malloc(
       OUTER_LOOP_COUNT * INNER_LOOP_COUNT * sizeof(unsigned long int));
 
@@ -73,7 +75,9 @@ event SubmitLoopbackKernel(queue &q, size_t count, bool &passed) {
       }
     });
   });
-  buf_out.get_access<access::mode::read>();
+
+  buf_out.get_host_access<access::mode::read>();
+
   for (size_t i = 0; i < (OUTER_LOOP_COUNT * INNER_LOOP_COUNT); i++) {
     if (dataout_host[i] != datain_host[i]) {
       std::cerr << "ERROR: output mismatch at entry " << i << ": "
@@ -82,7 +86,9 @@ event SubmitLoopbackKernel(queue &q, size_t count, bool &passed) {
       passed &= false;
     }
   }
+
   std::cout << "passed = " << passed << "\n";
+
   return kevent;
 }
 
