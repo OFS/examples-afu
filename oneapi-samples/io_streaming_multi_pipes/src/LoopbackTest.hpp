@@ -74,6 +74,7 @@ event SubmitLoopbackKernel(queue &q, size_t count, bool &passed) {
           count;
     }
   }
+
   unsigned long int *dataout_host =
       (unsigned long int *)malloc(PIPE_COUNT * OUTER_LOOP_COUNT *
                                   INNER_LOOP_COUNT * sizeof(unsigned long int));
@@ -113,7 +114,7 @@ event SubmitLoopbackKernel(queue &q, size_t count, bool &passed) {
     });
   });
 
-  buf_out.get_access<access::mode::read>();
+  buf_out.get_host_access(read_only);
 
   for (size_t i = 0; i < (PIPE_COUNT * OUTER_LOOP_COUNT * INNER_LOOP_COUNT);
        i++) {
