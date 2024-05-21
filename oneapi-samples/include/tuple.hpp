@@ -15,16 +15,14 @@ namespace fpga_tools {
 //    int c = my_tuple.get<2>();
 //    long d = my_tuple.get<3>();
 //
-template <typename... Tys>
-struct Tuple {
+template <typename... Tys> struct Tuple {
   Tuple(Tys... Args) : values(Args...) {}
   Tuple() {}
 
   //
   // get the index'th item in the tuple of values
   //
-  template <int index>
-  auto& get() {
+  template <int index> auto &get() {
     static_assert(index < NumTys, "index out of bounds");
     return get_impl<index, Tys...>(values);
   }
@@ -32,20 +30,19 @@ struct Tuple {
   //
   // helper to get the first element in the tuple
   //
-  auto& first() { return get<0>(); }
+  auto &first() { return get<0>(); }
 
   //
   // helper to get the last element in the tuple
   //
-  auto& last() { return get<NumTys - 1>(); }
+  auto &last() { return get<NumTys - 1>(); }
 
- private:
+private:
   //
   // generic tuple implementation: recursive case
   //
-  template <typename CurrentTy, typename... OtherTys>
-  struct tuple_impl {
-    tuple_impl(CurrentTy& current, OtherTys... others)
+  template <typename CurrentTy, typename... OtherTys> struct tuple_impl {
+    tuple_impl(CurrentTy &current, OtherTys... others)
         : value(current), other_values(others...) {}
     tuple_impl() {}
 
@@ -57,9 +54,8 @@ struct Tuple {
   //
   // generic tuple implementation: base case
   //
-  template <typename FinalTy>
-  struct tuple_impl<FinalTy> {
-    tuple_impl(FinalTy& current) : value(current) {}
+  template <typename FinalTy> struct tuple_impl<FinalTy> {
+    tuple_impl(FinalTy &current) : value(current) {}
     tuple_impl() {}
 
     using ValueTy = FinalTy;
@@ -76,7 +72,7 @@ struct Tuple {
   // implementation of 'get' for general tuple
   //
   template <int index, typename HeadTy, typename... TailTys>
-  static auto& get_impl(tuple_impl<HeadTy, TailTys...>& sub_tuple) {
+  static auto &get_impl(tuple_impl<HeadTy, TailTys...> &sub_tuple) {
     if constexpr (index == 0) {
       // base case
       return sub_tuple.value;
@@ -92,8 +88,7 @@ struct Tuple {
 // This is convenient way to have N elements of the same type
 // somewhat like an std::array
 //
-template <int, typename Type>
-using NTupleElem = Type;
+template <int, typename Type> using NTupleElem = Type;
 
 template <typename Type, std::size_t... Idx>
 static auto make_NTupleImpl(std::index_sequence<Idx...>)
@@ -111,9 +106,8 @@ using make_NTuple =
 //    NTuple<int, 10> elements;
 //    elements.get<3>() = 17;
 //
-template <typename Type, int N>
-using NTuple = make_NTuple<N, Type>;
+template <typename Type, int N> using NTuple = make_NTuple<N, Type>;
 
-}  // namespace fpga_tools
+} // namespace fpga_tools
 
 #endif /* __TUPLE_HPP__ */

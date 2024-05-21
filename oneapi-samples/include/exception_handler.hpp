@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: MIT
 #ifndef __EXCEPTIONHANDLER_HPP__
 #define __EXCEPTIONHANDLER_HPP__
-#include <sycl/sycl.hpp>
 #include <exception>
 #include <iostream>
+#include <sycl/sycl.hpp>
 
 namespace fpga_tools {
 

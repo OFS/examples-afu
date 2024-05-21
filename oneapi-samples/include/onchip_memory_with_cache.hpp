@@ -5,24 +5,22 @@
 
 #include <sycl/ext/intel/ac_types/ac_int.hpp>
 
-#include "constexpr_math.hpp"  // DirectProgramming/C++SYCL_FPGA/include
-#include "unrolled_loop.hpp"   // DirectProgramming/C++SYCL_FPGA/include
+#include "constexpr_math.hpp" // DirectProgramming/C++SYCL_FPGA/include
+#include "unrolled_loop.hpp"  // DirectProgramming/C++SYCL_FPGA/include
 
 namespace fpga_tools {
 
-template <typename T,           // type to store in the memory
-          size_t k_mem_depth,   // depth of the memory
-          size_t k_cache_depth  // number of elements in the cache
+template <typename T,          // type to store in the memory
+          size_t k_mem_depth,  // depth of the memory
+          size_t k_cache_depth // number of elements in the cache
           >
 class OnchipMemoryWithCache {
- public:
+public:
   static constexpr int kNumAddrBits = fpga_tools::CeilLog2(k_mem_depth);
   using addr_t = ac_int<kNumAddrBits, false>;
 
   OnchipMemoryWithCache() {
-    UnrolledLoop<k_cache_depth>([&](auto i) {
-      cache_valid_[i] = false;
-    });
+    UnrolledLoop<k_cache_depth>([&](auto i) { cache_valid_[i] = false; });
   }
   OnchipMemoryWithCache(T init_val) { init(init_val); }
 
@@ -30,22 +28,19 @@ class OnchipMemoryWithCache {
     for (int i = 0; i < k_mem_depth; i++) {
       data_[i] = init_val;
     }
-    UnrolledLoop<k_cache_depth>([&](auto i) {
-      cache_valid_[i] = false;
-    });
+    UnrolledLoop<k_cache_depth>([&](auto i) { cache_valid_[i] = false; });
   }
 
-  OnchipMemoryWithCache(const OnchipMemoryWithCache&) = delete;
-  OnchipMemoryWithCache& operator=(const OnchipMemoryWithCache&) = delete;
+  OnchipMemoryWithCache(const OnchipMemoryWithCache &) = delete;
+  OnchipMemoryWithCache &operator=(const OnchipMemoryWithCache &) = delete;
 
   // explicitly communicate to developers that we don't want to support a
   // square bracket operator that returns a reference, as it would allow
   // modification of the memory without updating the cache
-  template <typename I>
-  T& operator[](I addr) = delete;
+  template <typename I> T &operator[](I addr) = delete;
 
   // we can support the square bracket operator that returns a const ref
-  const T& operator[](addr_t addr) const { return read(addr); }
+  const T &operator[](addr_t addr) const { return read(addr); }
 
   void write(addr_t addr, T val) {
     // write the value from the end of the cache into the memory
@@ -56,7 +51,7 @@ class OnchipMemoryWithCache {
     // Shift the values in the cache
     UnrolledLoop<k_cache_depth - 1>([&](auto i) {
       if (cache_addr_[i + 1] == addr) {
-        cache_valid_[i] = false;  // invalidate old cache entry at same addr
+        cache_valid_[i] = false; // invalidate old cache entry at same addr
       } else {
         cache_valid_[i] = cache_valid_[i + 1];
       }
@@ -90,19 +85,19 @@ class OnchipMemoryWithCache {
     return return_val;
   }
 
- private:
+private:
   T data_[k_mem_depth];
   T cache_val_[k_cache_depth];
   addr_t cache_addr_[k_cache_depth];
   bool cache_valid_[k_cache_depth];
-};  // class OnchipMemoryWithCache
+}; // class OnchipMemoryWithCache
 
 // specialization for cache size 0 (no cache)
-template <typename T,         // type to store in the memory
-          size_t k_mem_depth  // depth of the memory
+template <typename T,        // type to store in the memory
+          size_t k_mem_depth // depth of the memory
           >
 class OnchipMemoryWithCache<T, k_mem_depth, 0> {
- public:
+public:
   static constexpr int kNumAddrBits = fpga_tools::CeilLog2(k_mem_depth);
   using addr_t = ac_int<kNumAddrBits, false>;
 
@@ -112,18 +107,17 @@ class OnchipMemoryWithCache<T, k_mem_depth, 0> {
       data_[i] = init_val;
     }
   }
-  OnchipMemoryWithCache(const OnchipMemoryWithCache&) = delete;
-  OnchipMemoryWithCache& operator=(const OnchipMemoryWithCache&) = delete;
-  template <typename I>
-  T& operator[](I addr) = delete;
-  const T& operator[](addr_t addr) const { return read(addr); }
+  OnchipMemoryWithCache(const OnchipMemoryWithCache &) = delete;
+  OnchipMemoryWithCache &operator=(const OnchipMemoryWithCache &) = delete;
+  template <typename I> T &operator[](I addr) = delete;
+  const T &operator[](addr_t addr) const { return read(addr); }
   void write(addr_t addr, T val) { data_[addr] = val; }
   T read(addr_t addr) { return data_[addr]; }
 
- private:
+private:
   T data_[k_mem_depth];
-};  // class OnchipMemoryWithCache<T, k_mem_depth, 0>
+}; // class OnchipMemoryWithCache<T, k_mem_depth, 0>
 
-}  // namespace fpga_tools
+} // namespace fpga_tools
 
-#endif  // __ONCHIP_MEMORY_WITH_CACHE_HPP__
+#endif // __ONCHIP_MEMORY_WITH_CACHE_HPP__

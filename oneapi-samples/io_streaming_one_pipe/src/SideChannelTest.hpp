@@ -4,8 +4,8 @@
 #ifndef __SIDECHANNELTEST_HPP__
 #define __SIDECHANNELTEST_HPP__
 
-#include <sycl/sycl.hpp>
 #include <sycl/ext/intel/fpga_extensions.hpp>
+#include <sycl/sycl.hpp>
 
 #include "FakeIOPipes.hpp"
 #include "HostSideChannel.hpp"
@@ -15,8 +15,12 @@ using namespace std::chrono_literals;
 
 // declare the kernel and pipe ID stucts globally to reduce name mangling
 struct SideChannelMainKernel;
-struct SideChannelReadIOPipeID { static constexpr unsigned id = 0; };
-struct SideChannelWriteIOPipeID { static constexpr unsigned id = 1; };
+struct SideChannelReadIOPipeID {
+  static constexpr unsigned id = 0;
+};
+struct SideChannelWriteIOPipeID {
+  static constexpr unsigned id = 1;
+};
 struct HostToDeviceSideChannelID;
 struct DeviceToHostSideChannelID;
 struct HostToDeviceTermSideChannelID;
@@ -34,10 +38,9 @@ struct HostToDeviceTermSideChannelID;
 // 'match_num' and the latter causes this kernel to break from the outer loop
 // and terminate.
 //
-template<class IOPipeIn, class IOPipeOut,
-         class HostToDeviceSideChannel, class DeviceToHostSideChannel,
-         class HostToDeviceTermSideChannel>
-event SubmitSideChannelKernels(queue& q, int initial_match_num,
+template <class IOPipeIn, class IOPipeOut, class HostToDeviceSideChannel,
+          class DeviceToHostSideChannel, class HostToDeviceTermSideChannel>
+event SubmitSideChannelKernels(queue &q, int initial_match_num,
                                size_t frame_size) {
   // the maximum number of consecutive input read misses before
   // breaking out of the computation loop
@@ -57,7 +60,8 @@ event SubmitSideChannelKernels(queue& q, int initial_match_num,
       // check for an update to the sum_threshold from the host
       bool valid_update;
       int tmp = HostToDeviceSideChannel::read(valid_update);
-      if (valid_update) match_num = tmp;
+      if (valid_update)
+        match_num = tmp;
 
       // reset the timeout counter
       timeout_counter = 0;
@@ -65,11 +69,12 @@ event SubmitSideChannelKernels(queue& q, int initial_match_num,
       // if we processed a full frame, reset the counter
       // this places a maximum on the number of elements we process before
       // checking for an update from the host
-      if (samples_processed == frame_size) samples_processed = 0;
+      if (samples_processed == frame_size)
+        samples_processed = 0;
 
       // do the main processing
-      while ((samples_processed != frame_size) && 
-              (timeout_counter != kTimeoutCounterMax)) {
+      while ((samples_processed != frame_size) &&
+             (timeout_counter != kTimeoutCounterMax)) {
         // read from the input IO pipe
         bool valid_read;
         auto val = IOPipeIn::read(valid_read);
@@ -86,7 +91,7 @@ event SubmitSideChannelKernels(queue& q, int initial_match_num,
             // value matches, so tell the host about it
             DeviceToHostSideChannel::write(val);
           }
-          
+
           // propagate the input value to the output
           IOPipeOut::write(val);
         } else {
@@ -107,15 +112,15 @@ event SubmitSideChannelKernels(queue& q, int initial_match_num,
 // This function builds the full system using fake IO pipes.
 // It creates, produces, and consumes the fake data and validates the output
 //
-template<typename T, bool use_usm_host_alloc>
-bool RunSideChannelsSystem(queue& q, size_t count) {
+template <typename T, bool use_usm_host_alloc>
+bool RunSideChannelsSystem(queue &q, size_t count) {
   //////////////////////////////////////////////////////////////////////////////
   // IO pipes
   // these are the FAKE IO pipes
-  using FakeIOPipeInProducer = Producer<SideChannelReadIOPipeID,
-                                T, use_usm_host_alloc>;
-  using FakeIOPipeOutConsumer = Consumer<SideChannelWriteIOPipeID,
-                                 T, use_usm_host_alloc>;
+  using FakeIOPipeInProducer =
+      Producer<SideChannelReadIOPipeID, T, use_usm_host_alloc>;
+  using FakeIOPipeOutConsumer =
+      Consumer<SideChannelWriteIOPipeID, T, use_usm_host_alloc>;
   using ReadIOPipe = typename FakeIOPipeInProducer::Pipe;
   using WriteIOPipe = typename FakeIOPipeOutConsumer::Pipe;
 
@@ -126,13 +131,13 @@ bool RunSideChannelsSystem(queue& q, size_t count) {
 
   //////////////////////////////////////////////////////////////////////////////
   // the side channels
-  using MyHostToDeviceSideChannel = 
-    HostToDeviceSideChannel<HostToDeviceSideChannelID,
-                            int, use_usm_host_alloc, 1>;
-  using MyHostToDeviceTermSideChannel = 
-    HostToDeviceSideChannel<HostToDeviceTermSideChannelID,
-                            char, use_usm_host_alloc, 1>;
-  
+  using MyHostToDeviceSideChannel =
+      HostToDeviceSideChannel<HostToDeviceSideChannelID, int,
+                              use_usm_host_alloc, 1>;
+  using MyHostToDeviceTermSideChannel =
+      HostToDeviceSideChannel<HostToDeviceTermSideChannelID, char,
+                              use_usm_host_alloc, 1>;
+
   // This side channel is used to sent updates from the device to the host.
   // We explicitly set the depth of the FIFO to '8' here. If the host does not
   // read from this side channel quick enough it will causes the main processing
@@ -140,10 +145,9 @@ bool RunSideChannelsSystem(queue& q, size_t count) {
   // designing a 'real' system that uses side channels. In this tutorial, the
   // frequency of updates from the device is so low that this channel can be
   // shallow.
-  using MyDeviceToHostSideChannel = 
-    DeviceToHostSideChannel<DeviceToHostSideChannelID,
-                            int, use_usm_host_alloc, 8>;
-
+  using MyDeviceToHostSideChannel =
+      DeviceToHostSideChannel<DeviceToHostSideChannelID, int,
+                              use_usm_host_alloc, 8>;
 
   // initialize the side channels
   MyHostToDeviceSideChannel::Init(q);
@@ -161,20 +165,20 @@ bool RunSideChannelsSystem(queue& q, size_t count) {
   // is count * (4/count) = 4.
   int rand_max = std::max(4, (int)(count / 4));
   size_t frame_size = 1024;
-  std::generate_n(i_stream_data, count, [&] { return rand() % rand_max; } );
+  std::generate_n(i_stream_data, count, [&] { return rand() % rand_max; });
 
   // submit the main kernels, once and only once
-  auto main_kernel = 
-    SubmitSideChannelKernels<ReadIOPipe, WriteIOPipe, MyHostToDeviceSideChannel,
-                             MyDeviceToHostSideChannel,
-                             MyHostToDeviceTermSideChannel>(q, -1, frame_size);
+  auto main_kernel = SubmitSideChannelKernels<
+      ReadIOPipe, WriteIOPipe, MyHostToDeviceSideChannel,
+      MyDeviceToHostSideChannel, MyHostToDeviceTermSideChannel>(q, -1,
+                                                                frame_size);
 
   //////////////////////////////////////////////////////////////////////////////
   // this lambda will perform a single test to detect all `match_num` elements
   auto test_lambda = [&](int match_num) {
     // determine expected number of updates for this 'match_num'
-    size_t expected_updated_count = 
-      std::count(i_stream_data, i_stream_data + count, match_num);
+    size_t expected_updated_count =
+        std::count(i_stream_data, i_stream_data + count, match_num);
     std::vector<int> device_updates;
     device_updates.reserve(expected_updated_count);
 
@@ -201,9 +205,9 @@ bool RunSideChannelsSystem(queue& q, size_t count) {
     event producer_dma_event, producer_kernel_event;
     event consumer_dma_event, consumer_kernel_event;
     std::tie(producer_dma_event, producer_kernel_event) =
-      FakeIOPipeInProducer::Start(q);
+        FakeIOPipeInProducer::Start(q);
     std::tie(consumer_dma_event, consumer_kernel_event) =
-      FakeIOPipeOutConsumer::Start(q);
+        FakeIOPipeOutConsumer::Start(q);
 
     // get updates from the device
     for (size_t i = 0; i < expected_updated_count; i++) {

@@ -60,8 +60,7 @@ using make_index_range = integer_range<std::size_t, begin, end>;
 // and 'make_index_pow2_sequence'. These generate the sequence
 // 2^0, 2^1, 2^2, ... , 2^(N-1) = 1,2,4,...,2^(N-1)
 //
-template <typename T, typename>
-struct integer_pow2_sequence_impl;
+template <typename T, typename> struct integer_pow2_sequence_impl;
 
 template <typename T, T... Pows>
 struct integer_pow2_sequence_impl<T, std::integer_sequence<T, Pows...>> {
@@ -96,21 +95,20 @@ using make_index_pow2_sequence = integer_pow2_sequence<std::size_t, N>;
 // Checks for existence of subscript operator
 //
 namespace detail {
-template <typename... >
-using void_t = void;
+template <typename...> using void_t = void;
 
-template<class T, typename = void>
-struct has_subscript_impl : std::false_type { };
-
-template<typename T>
-struct has_subscript_impl<T, void_t<decltype(std::declval<T>()[1])>> 
-  : std::true_type { };
-}  // namespace detail
+template <class T, typename = void>
+struct has_subscript_impl : std::false_type {};
 
 template <typename T>
-struct has_subscript {
+struct has_subscript_impl<T, void_t<decltype(std::declval<T>()[1])>>
+    : std::true_type {};
+} // namespace detail
+
+template <typename T> struct has_subscript {
   static constexpr bool value =
-    std::is_same_v<typename detail::has_subscript_impl<T>::type, std::true_type>;
+      std::is_same_v<typename detail::has_subscript_impl<T>::type,
+                     std::true_type>;
 };
 
 template <typename T>
@@ -121,16 +119,14 @@ inline constexpr bool has_subscript_v = has_subscript<T>::value;
 //
 namespace detail {
 
-template<typename T>
-struct is_sycl_pipe_impl : std::false_type {};
+template <typename T> struct is_sycl_pipe_impl : std::false_type {};
 
-template<typename Id, typename T, std::size_t N>
+template <typename Id, typename T, std::size_t N>
 struct is_sycl_pipe_impl<sycl::ext::intel::pipe<Id, T, N>> : std::true_type {};
 
-}  // namespace detail
+} // namespace detail
 
-template <typename T>
-struct is_sycl_pipe {
+template <typename T> struct is_sycl_pipe {
   static constexpr bool value = detail::is_sycl_pipe_impl<T>{};
 };
 
@@ -139,4 +135,4 @@ inline constexpr bool is_sycl_pipe_v = is_sycl_pipe<T>::value;
 
 } // namespace fpga_tools
 
-#endif  /* __METAPROGRAMMING_UTILS_HPP__ */
+#endif /* __METAPROGRAMMING_UTILS_HPP__ */

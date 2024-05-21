@@ -4,8 +4,8 @@
 #ifndef __LOOPBACKTEST_HPP__
 #define __LOOPBACKTEST_HPP__
 
-#include <sycl/sycl.hpp>
 #include <sycl/ext/intel/fpga_extensions.hpp>
+#include <sycl/sycl.hpp>
 
 #include "FakeIOPipes.hpp"
 
@@ -14,16 +14,19 @@
 // NOTE: define this BEFORE including the LoopbackTest.hpp and
 // SideChannelTest.hpp which will check for the presence of this macro.
 #define USE_REAL_IO_PIPES
-#define OUTER_LOOP_COUNT 10 
-#define INNER_LOOP_COUNT 2048 
+#define OUTER_LOOP_COUNT 10
+#define INNER_LOOP_COUNT 2048
 
 using namespace sycl;
 
 // declare the kernel and pipe ID stucts globally to reduce name mangling
 struct LoopBackMainKernel;
-struct LoopBackReadIOPipeID { static constexpr unsigned id = 0; };
-struct LoopBackWriteIOPipeID { static constexpr unsigned id = 1; };
-
+struct LoopBackReadIOPipeID {
+  static constexpr unsigned id = 0;
+};
+struct LoopBackWriteIOPipeID {
+  static constexpr unsigned id = 1;
+};
 
 //
 // The simplest processing kernel. Streams data in 'IOPipeIn' and streams
@@ -33,35 +36,45 @@ struct LoopBackWriteIOPipeID { static constexpr unsigned id = 1; };
 // stitching together the whole system. In this tutorial, the stitching of the
 // full system is done below in the 'RunLoopbackSystem' function.
 //
-template<class IOPipeIn, class IOPipeOut>
-event SubmitLoopbackKernel(queue& q, size_t count, bool& passed) {
- std::cout << "inside SubmitLoopbackKernel \n"; 
-  unsigned long int *datain_host = (unsigned long int *)malloc(OUTER_LOOP_COUNT * INNER_LOOP_COUNT * sizeof(unsigned long int));
-  for(size_t count = 0; count < (OUTER_LOOP_COUNT*INNER_LOOP_COUNT); count++){
+template <class IOPipeIn, class IOPipeOut>
+event SubmitLoopbackKernel(queue &q, size_t count, bool &passed) {
+  std::cout << "inside SubmitLoopbackKernel \n";
+  unsigned long int *datain_host = (unsigned long int *)malloc(
+      OUTER_LOOP_COUNT * INNER_LOOP_COUNT * sizeof(unsigned long int));
+  for (size_t count = 0; count < (OUTER_LOOP_COUNT * INNER_LOOP_COUNT);
+       count++) {
     datain_host[count] = count;
   }
-  unsigned long int *dataout_host = (unsigned long int *)malloc(OUTER_LOOP_COUNT * INNER_LOOP_COUNT * sizeof(unsigned long int));
+  unsigned long int *dataout_host = (unsigned long int *)malloc(
+      OUTER_LOOP_COUNT * INNER_LOOP_COUNT * sizeof(unsigned long int));
 
-  buffer<unsigned long int, 1> buf_in(datain_host, range<1>(OUTER_LOOP_COUNT * INNER_LOOP_COUNT ));
-  buffer<unsigned long int, 1> buf_out(dataout_host, range<1>(OUTER_LOOP_COUNT * INNER_LOOP_COUNT ));
+  buffer<unsigned long int, 1> buf_in(
+      datain_host, range<1>(OUTER_LOOP_COUNT * INNER_LOOP_COUNT));
+  buffer<unsigned long int, 1> buf_out(
+      dataout_host, range<1>(OUTER_LOOP_COUNT * INNER_LOOP_COUNT));
 
-  event kevent = q.submit([&] (handler& h) {
+  event kevent = q.submit([&](handler &h) {
     auto in = buf_in.get_access<access::mode::read_write>(h);
     auto out = buf_out.get_access<access::mode::read_write>(h);
 
     h.single_task<LoopBackMainKernel>([=] {
-    for(size_t outer_loop_count = 0 ; outer_loop_count < OUTER_LOOP_COUNT; outer_loop_count++) { 
-      for (size_t inner_loop_count = 0; inner_loop_count < INNER_LOOP_COUNT ; inner_loop_count++) {
-        IOPipeOut::write(in[outer_loop_count*INNER_LOOP_COUNT + inner_loop_count]);
+      for (size_t outer_loop_count = 0; outer_loop_count < OUTER_LOOP_COUNT;
+           outer_loop_count++) {
+        for (size_t inner_loop_count = 0; inner_loop_count < INNER_LOOP_COUNT;
+             inner_loop_count++) {
+          IOPipeOut::write(
+              in[outer_loop_count * INNER_LOOP_COUNT + inner_loop_count]);
+        }
+        for (size_t inner_loop_count = 0; inner_loop_count < INNER_LOOP_COUNT;
+             inner_loop_count++) {
+          out[outer_loop_count * INNER_LOOP_COUNT + inner_loop_count] =
+              IOPipeIn::read();
+        }
       }
-      for (size_t inner_loop_count = 0; inner_loop_count < INNER_LOOP_COUNT ; inner_loop_count++) {
-        out[outer_loop_count*INNER_LOOP_COUNT + inner_loop_count] = IOPipeIn::read();
-      }
-    }
-  });
+    });
   });
   buf_out.get_access<access::mode::read>();
-  for (size_t i = 0; i < (OUTER_LOOP_COUNT*INNER_LOOP_COUNT); i++) {
+  for (size_t i = 0; i < (OUTER_LOOP_COUNT * INNER_LOOP_COUNT); i++) {
     if (dataout_host[i] != datain_host[i]) {
       std::cerr << "ERROR: output mismatch at entry " << i << ": "
                 << dataout_host[i] << " != " << datain_host[i]
@@ -69,16 +82,15 @@ event SubmitLoopbackKernel(queue& q, size_t count, bool& passed) {
       passed &= false;
     }
   }
- std::cout << "passed = " << passed << "\n"; 
-return kevent;
-
+  std::cout << "passed = " << passed << "\n";
+  return kevent;
 }
 
 //
 // Run the loopback system
 //
-template<typename T, bool use_usm_host_alloc>
-bool RunLoopbackSystem(queue& q, size_t count) {
+template <typename T, bool use_usm_host_alloc>
+bool RunLoopbackSystem(queue &q, size_t count) {
   bool passed = true;
 
   //////////////////////////////////////////////////////////////////////////////
@@ -86,10 +98,10 @@ bool RunLoopbackSystem(queue& q, size_t count) {
   constexpr size_t kIOPipeDepth = 4;
 #ifndef USE_REAL_IO_PIPES
   // these are FAKE IO pipes (and their producer/consumer)
-  using FakeIOPipeInProducer = Producer<LoopBackReadIOPipeID,
-                                T, use_usm_host_alloc, kIOPipeDepth>;
-  using FakeIOPipeOutConsumer = Consumer<LoopBackWriteIOPipeID,
-                                 T, use_usm_host_alloc, kIOPipeDepth>;
+  using FakeIOPipeInProducer =
+      Producer<LoopBackReadIOPipeID, T, use_usm_host_alloc, kIOPipeDepth>;
+  using FakeIOPipeOutConsumer =
+      Consumer<LoopBackWriteIOPipeID, T, use_usm_host_alloc, kIOPipeDepth>;
   using ReadIOPipe = typename FakeIOPipeInProducer::Pipe;
   using WriteIOPipe = typename FakeIOPipeOutConsumer::Pipe;
 
@@ -98,12 +110,11 @@ bool RunLoopbackSystem(queue& q, size_t count) {
   FakeIOPipeOutConsumer::Init(q, count);
 #else
   // these are REAL IO pipes
-  using ReadIOPipe = 
-    ext::intel::kernel_readable_io_pipe<LoopBackReadIOPipeID,
-                                   T, kIOPipeDepth>;
+  using ReadIOPipe = ext::intel::kernel_readable_io_pipe<LoopBackReadIOPipeID,
+                                                         T, kIOPipeDepth>;
   using WriteIOPipe =
-    ext::intel::kernel_writeable_io_pipe<LoopBackWriteIOPipeID,
-                                   T, kIOPipeDepth>;
+      ext::intel::kernel_writeable_io_pipe<LoopBackWriteIOPipeID, T,
+                                           kIOPipeDepth>;
 #endif
   //////////////////////////////////////////////////////////////////////////////
 
@@ -113,11 +124,12 @@ bool RunLoopbackSystem(queue& q, size_t count) {
   auto i_stream_data = FakeIOPipeInProducer::Data();
 
   // create some random input data for the fake IO pipe
-  std::generate_n(i_stream_data, count, [&] { return rand() % 100; } );
+  std::generate_n(i_stream_data, count, [&] { return rand() % 100; });
 #endif
 
   // submit the main processing kernel
-  auto kernel_event = SubmitLoopbackKernel<ReadIOPipe, WriteIOPipe>(q, count, passed);
+  auto kernel_event =
+      SubmitLoopbackKernel<ReadIOPipe, WriteIOPipe>(q, count, passed);
 
   // FAKE IO PIPES ONLY
 #ifndef USE_REAL_IO_PIPES
@@ -161,6 +173,5 @@ bool RunLoopbackSystem(queue& q, size_t count) {
 
   return passed;
 }
-
 
 #endif /* __LOOPBACKTEST_HPP__ */

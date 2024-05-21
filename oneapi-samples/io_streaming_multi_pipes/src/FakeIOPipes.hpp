@@ -8,8 +8,8 @@
 #include <type_traits>
 #include <utility>
 
-#include <sycl/sycl.hpp>
 #include <sycl/ext/intel/fpga_extensions.hpp>
+#include <sycl/sycl.hpp>
 
 // the "detail" namespace is commonly used in C++ as an internal namespace
 // (to a file) that is not meant to be visible to the public and should be
@@ -23,7 +23,7 @@ using namespace sycl;
 
 template <typename ID, typename T, bool use_host_alloc>
 class ProducerConsumerBaseImpl {
- protected:
+protected:
   // private members
   static inline T *host_data_{nullptr};
   static inline T *device_data_{nullptr};
@@ -50,11 +50,11 @@ class ProducerConsumerBaseImpl {
     }
   }
 
- public:
+public:
   // disable copy constructor and operator=
   ProducerConsumerBaseImpl(const ProducerConsumerBaseImpl &) = delete;
-  ProducerConsumerBaseImpl &operator=(ProducerConsumerBaseImpl const &) =
-      delete;
+  ProducerConsumerBaseImpl &
+  operator=(ProducerConsumerBaseImpl const &) = delete;
 
   static void Init(queue &q, size_t count) {
     // make sure init hasn't already been called
@@ -75,7 +75,8 @@ class ProducerConsumerBaseImpl {
       std::terminate();
     }
 
-    if (!use_host_alloc && !d.get_info<info::device::usm_device_allocations>()) {
+    if (!use_host_alloc &&
+        !d.get_info<info::device::usm_device_allocations>()) {
       std::cerr << "ERROR: The selected device does not support USM device"
                 << " allocations\n";
       std::terminate();
@@ -98,8 +99,7 @@ class ProducerConsumerBaseImpl {
     if (!use_host_alloc) {
       device_data_ = malloc_device<T>(count_, q);
       if (device_data_ == nullptr) {
-        std::cerr << "ERROR: failed to allocate space for"
-                  << "device_data_\n";
+        std::cerr << "ERROR: failed to allocate space for" << "device_data_\n";
         std::terminate();
       }
     }
@@ -140,7 +140,7 @@ class ProducerConsumerBaseImpl {
 // Producer implementation
 template <typename Id, typename T, bool use_host_alloc, size_t min_capacity>
 class ProducerImpl : public ProducerConsumerBaseImpl<Id, T, use_host_alloc> {
- private:
+private:
   // base implementation alias
   using BaseImpl = ProducerConsumerBaseImpl<Id, T, use_host_alloc>;
   using kernel_ptr_type = typename BaseImpl::kernel_ptr_type;
@@ -152,7 +152,7 @@ class ProducerImpl : public ProducerConsumerBaseImpl<Id, T, use_host_alloc> {
   // private constructor so users cannot make an object
   ProducerImpl(){};
 
- public:
+public:
   // disable copy constructor and operator=
   ProducerImpl(const ProducerImpl &) = delete;
   ProducerImpl &operator=(ProducerImpl const &) = delete;
@@ -191,14 +191,14 @@ class ProducerImpl : public ProducerConsumerBaseImpl<Id, T, use_host_alloc> {
 
       // the producing kernel
       // NO-FORMAT comments are for clang-format
-      h.single_task<Id>([=
-      ]() [[intel::kernel_args_restrict]] {  // NO-FORMAT: Attribute
-        kernel_ptr_type ptr(kernel_ptr);
-        for (size_t i = 0; i < count; i++) {
-          auto d = *(ptr + i);
-          Pipe::write(d);
-        }
-      });
+      h.single_task<Id>(
+          [=]() [[intel::kernel_args_restrict]] { // NO-FORMAT: Attribute
+            kernel_ptr_type ptr(kernel_ptr);
+            for (size_t i = 0; i < count; i++) {
+              auto d = *(ptr + i);
+              Pipe::write(d);
+            }
+          });
     });
 
     return std::make_pair(dma_event, kernel_event);
@@ -210,7 +210,7 @@ class ProducerImpl : public ProducerConsumerBaseImpl<Id, T, use_host_alloc> {
 // Consumer implementation
 template <typename Id, typename T, bool use_host_alloc, size_t min_capacity>
 class ConsumerImpl : public ProducerConsumerBaseImpl<Id, T, use_host_alloc> {
- private:
+private:
   // base implementation alias
   using BaseImpl = ProducerConsumerBaseImpl<Id, T, use_host_alloc>;
   using kernel_ptr_type = typename BaseImpl::kernel_ptr_type;
@@ -222,7 +222,7 @@ class ConsumerImpl : public ProducerConsumerBaseImpl<Id, T, use_host_alloc> {
   // private constructor so users cannot make an object
   ConsumerImpl(){};
 
- public:
+public:
   // disable copy constructor and operator=
   ConsumerImpl(const ConsumerImpl &) = delete;
   ConsumerImpl &operator=(ConsumerImpl const &) = delete;
@@ -248,14 +248,14 @@ class ConsumerImpl : public ProducerConsumerBaseImpl<Id, T, use_host_alloc> {
     // launch the kernel to read the output into device side global memory
     auto kernel_event = q.submit([&](handler &h) {
       // NO-FORMAT comments are for clang-format
-      h.single_task<Id>([=
-      ]() [[intel::kernel_args_restrict]] {  // NO-FORMAT: Attribute
-        kernel_ptr_type ptr(kernel_ptr);
-        for (size_t i = 0; i < count; i++) {
-          auto d = Pipe::read();
-          *(ptr + i) = d;
-        }
-      });
+      h.single_task<Id>(
+          [=]() [[intel::kernel_args_restrict]] { // NO-FORMAT: Attribute
+            kernel_ptr_type ptr(kernel_ptr);
+            for (size_t i = 0; i < count; i++) {
+              auto d = Pipe::read();
+              *(ptr + i) = d;
+            }
+          });
     });
 
     // if the user wanted to use board memory, copy the data back to the host
@@ -275,7 +275,7 @@ class ConsumerImpl : public ProducerConsumerBaseImpl<Id, T, use_host_alloc> {
 };
 ////////////////////////////////////////////////////////////////////////////////
 
-}  // namespace detail
+} // namespace detail
 
 // alias the implementations to face the user
 template <typename Id, typename T, bool use_host_alloc, size_t min_capacity = 0>

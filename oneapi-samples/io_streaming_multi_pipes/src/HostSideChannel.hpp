@@ -7,8 +7,8 @@
 #include <iostream>
 #include <type_traits>
 
-#include <sycl/sycl.hpp>
 #include <sycl/ext/intel/fpga_extensions.hpp>
+#include <sycl/sycl.hpp>
 
 #include "FakeIOPipes.hpp"
 
@@ -21,17 +21,17 @@ using namespace sycl;
 // SYCL pipe. It also exposes a write interface to the HOST that allows the
 // user to easily write data from host to the device
 //
-template <typename Id, typename T, bool use_host_alloc, size_t min_capacity=0>
+template <typename Id, typename T, bool use_host_alloc, size_t min_capacity = 0>
 class HostToDeviceSideChannel {
 protected:
   using MyProducer = Producer<Id, T, use_host_alloc, min_capacity>;
-  static inline queue* q_{nullptr};
+  static inline queue *q_{nullptr};
 
 public:
   // disable copy constructor and operator=
-  HostToDeviceSideChannel()=delete;
-  HostToDeviceSideChannel(const HostToDeviceSideChannel &)=delete;
-  HostToDeviceSideChannel& operator=(HostToDeviceSideChannel const &)=delete;
+  HostToDeviceSideChannel() = delete;
+  HostToDeviceSideChannel(const HostToDeviceSideChannel &) = delete;
+  HostToDeviceSideChannel &operator=(HostToDeviceSideChannel const &) = delete;
 
   static void Init(queue &q) {
     q_ = &q;
@@ -88,17 +88,17 @@ public:
 // It also exposes a write interface to the DEVICE that allows the user to
 // easily write data from device to the host.
 //
-template <typename Id, typename T, bool use_host_alloc, size_t min_capacity=0>
+template <typename Id, typename T, bool use_host_alloc, size_t min_capacity = 0>
 class DeviceToHostSideChannel {
 protected:
   using MyConsumer = Consumer<Id, T, use_host_alloc, min_capacity>;
-  static inline queue* q_{nullptr};
+  static inline queue *q_{nullptr};
 
 public:
   // disable copy constructor and operator=
-  DeviceToHostSideChannel()=delete;
-  DeviceToHostSideChannel(const DeviceToHostSideChannel &)=delete;
-  DeviceToHostSideChannel& operator=(DeviceToHostSideChannel const &)=delete;
+  DeviceToHostSideChannel() = delete;
+  DeviceToHostSideChannel(const DeviceToHostSideChannel &) = delete;
+  DeviceToHostSideChannel &operator=(DeviceToHostSideChannel const &) = delete;
 
   static void Init(queue &q) {
     q_ = &q;
@@ -145,9 +145,7 @@ public:
     MyConsumer::Pipe::write(data, success_code);
   }
 
-  static T Data() {
-    return MyConsumer::Data()[0];
-  }
+  static T Data() { return MyConsumer::Data()[0]; }
 };
 
 #endif /* __HOSTSIDECHANNEL_HPP__ */
