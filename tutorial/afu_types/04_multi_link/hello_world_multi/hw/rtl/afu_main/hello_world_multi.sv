@@ -138,22 +138,34 @@ module hello_world_multi
     // if it has more than 1 CSR.
     //
     wire gen_dma_write = rx_hdr_valid && pcie_ss_hdr_pkg::func_is_mwr_req(rx_hdr.fmt_type);
-    pcie_ss_hdr_pkg::PCIe_ReqHdr_t tx_wr_hdr;
+    pcie_ss_hdr_pkg::PCIe_PUReqHdr_t tx_wr_hdr;
 
-    // Data mover write request header to the address that just arrived in the
+    wire tx_wr_is_addr64 = |rx_data[57:26];
+
+    // Write request header to the address that just arrived in the
     // payload of an incoming CSR write.
     always_comb
     begin
         tx_wr_hdr = '0;
-        tx_wr_hdr.fmt_type = pcie_ss_hdr_pkg::DM_WR;
+        tx_wr_hdr.fmt_type = tx_wr_is_addr64 ? pcie_ss_hdr_pkg::DM_WR : pcie_ss_hdr_pkg::M_WR;
         tx_wr_hdr.pf_num = PF_ID;
         tx_wr_hdr.vf_num = VF_ID;
         tx_wr_hdr.vf_active = VF_ACTIVE;
-        {tx_wr_hdr.length_h, tx_wr_hdr.length_m, tx_wr_hdr.length_l} = 20; // Bytes
+        tx_wr_hdr.length = 5; // DWords
+        tx_wr_hdr.req_id = { tx_wr_hdr.vf_num, tx_wr_hdr.vf_active, tx_wr_hdr.pf_num };
+        tx_wr_hdr.last_dw_be = 4'hf;
+        tx_wr_hdr.first_dw_be = 4'hf;
+
         // The incoming address is the offset of 512 bit lines. Shift it left
         // because DM encoding expects a byte address.
-        {tx_wr_hdr.host_addr_h, tx_wr_hdr.host_addr_m, tx_wr_hdr.host_addr_l} =
-            {rx_data[57:0], 6'b0};
+        if (tx_wr_is_addr64)
+        begin
+            {tx_wr_hdr.host_addr_h, tx_wr_hdr.host_addr_l} = {rx_data[57:0], 4'b0};
+        end
+        else
+        begin
+            tx_wr_hdr.host_addr_h = {rx_data[25:0], 6'b0};
+        end
     end
 
 
@@ -162,7 +174,7 @@ module hello_world_multi
     always_comb
     begin
         o_tx_if.tvalid = (rx_hdr_valid &&
-                        pcie_ss_hdr_pkg::func_is_mrd_req(rx_hdr.fmt_type)) || gen_dma_write;
+                          pcie_ss_hdr_pkg::func_is_mrd_req(rx_hdr.fmt_type)) || gen_dma_write;
         if (!gen_dma_write)
         begin
             //
@@ -186,7 +198,7 @@ module hello_world_multi
             // of this module is instantiated with a unique ID.
             o_tx_if.tdata = { '0, 16'h0029, 8'('h30 + ID), 104'h2820646c726f77206f6c6c6548, tx_wr_hdr };
             o_tx_if.tlast = 1'b1;
-            o_tx_if.tuser_vendor = 1;	// Data mover encoding
+            o_tx_if.tuser_vendor = 0;   // PU encoding
             o_tx_if.tkeep = { '0, {20{1'b1}}, {TX_CPL_HDR_BYTES{1'b1}} };
         end
     end
