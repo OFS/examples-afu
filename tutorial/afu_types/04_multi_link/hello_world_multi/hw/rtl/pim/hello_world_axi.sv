@@ -27,13 +27,19 @@ module hello_world_axi
     logic reset_n;
     assign reset_n = host_mem.reset_n;
 
-    localparam DATA_WIDTH = host_mem.DATA_WIDTH_;
+    localparam DATA_WIDTH = host_mem.DATA_WIDTH;
 
     // =========================================================================
     //
     //   CSR (MMIO) handling with AXI lite.
     //
     // =========================================================================
+
+    //
+    // The primary DFH with the AFU ID and the parent/child info is handled
+    // already, outside this module. Only the CSR space to which the v1 DFH
+    // points has to be managed here.
+    //
 
     //
     // The AXI lite interface is defined in
@@ -44,19 +50,6 @@ module hello_world_axi
     // concatenation of the struct instance and field. E.g., AWADDR is
     // aw.addr. The use of structs makes it easier to bulk copy or bulk
     // initialize the full payload of a bus.
-    //
-
-    // The AFU ID is a unique ID for a given program.  Here we generated
-    // one with the "uuidgen" program and stored it in the AFU's JSON file.
-    // ASE and synthesis setup scripts automatically invoke afu_json_mgr
-    // to extract the UUID into afu_json_info.vh.
-    logic [127:0] afu_id = `AFU_ACCEL_UUID;
-
-    //
-    // A valid AFU must implement a device feature list, starting at MMIO
-    // address 0.  Every entry in the feature list begins with 5 64-bit
-    // words: a device feature header, two AFU UUID words and two reserved
-    // words.
     //
 
     // Use a copy of the MMIO interface as registers.

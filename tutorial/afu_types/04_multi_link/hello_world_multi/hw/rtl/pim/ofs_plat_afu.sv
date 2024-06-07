@@ -58,11 +58,15 @@ module ofs_plat_afu
     // the FIM's multi_link_afu_dfh module will connect the plat_ifc
     // ports to these new host_chan_with_dfh ports. All traffic other
     // than the MMIO associated with the AFU features will reach them.
+    //
+    // The vector here has one entry for the parent plus one for
+    // each child.
     ofs_plat_host_chan_axis_pcie_tlp_if host_chan_with_dfh[1+NUM_CHILDREN]();
 
-    // Instantiate the parent feature at MMIO offset 0. The parent feature
-    // contains a parameter that lists the children. OPAE will discover the
-    // parameter and load children along with the parent.
+    // Instantiate the parent feature at MMIO offset 0 in the primary
+    // (parent) AFU. The parent feature contains a parameter that lists
+    // the children. OPAE will discover the parameter and load children
+    // along with the parent.
     //
     // This module acts as a shim that implements only the one DFL entry.
     // Other traffic to/from the AFU flows on host_chan_with_dfh.
@@ -70,7 +74,8 @@ module ofs_plat_afu
       #(
         .NUM_CHILDREN(NUM_CHILDREN),
         .CHILD_GUIDS(GUIDS[1:NUM_CHILDREN]),
-        // Parent implements a CSR block at 'h1000
+        // Parent implements a CSR block at 'h1000. These CSR parameters
+        // because DFL v1 CSR pointers.
         .CSR_ADDR('h1000),
         .CSR_SIZE('h1000),
         // Parent ID
@@ -85,9 +90,10 @@ module ofs_plat_afu
 
     generate
         // Instantiate child features at MMIO offset 0 of the children.
-        // The same module is used. When NUM_CHILDREN is not set (defaults
-        // to 0), a child feature is constructed. Except for building
-        // a different header, the behavior is similar to the parent.
+        // The same module is used for both parents and children. When
+        // NUM_CHILDREN is not set (defaults to 0), a child feature is
+        // constructed. Except for building a different header, the
+        // behavior is similar to the parent.
         for (genvar p = 1; p <= NUM_CHILDREN; p = p + 1)
         begin : child
             ofs_plat_host_chan_fim_multi_link_afu_dfh
@@ -155,7 +161,12 @@ module ofs_plat_afu
 
 
             //
-            // Instantiate the hello world implementation
+            // Instantiate the hello world implementation.
+            //
+            // In this example each instance is basically the same, independent
+            // of whether it is the parent or a child. The NUM_CHILDREN and
+            // ID parameters are exposed as CSRs or passed with output data,
+            // but only as examples. Neither affects the algorithm.
             //
             hello_world_axi
               #(
