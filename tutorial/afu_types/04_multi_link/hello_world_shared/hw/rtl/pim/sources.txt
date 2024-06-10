@@ -1,0 +1,7 @@
+hello_world_shared.json
+
+ofs_plat_afu.sv
+hello_world_shared.sv
+
+# Pointer to software:
+# sw:../../../sw/hello_world_shared
