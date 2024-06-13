@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
     uint64_t buf_pa;
     bool is_ase_sim = false;
     fpga_result r;
+    uint32_t i;
 
     // Find and connect to the accelerators
     r = connect_to_matching_accel(AFU_ACCEL_UUID, &accel_handle, &is_ase_sim);
@@ -173,7 +174,7 @@ int main(int argc, char *argv[])
     // Trigger a memory request in each child. The buffer is available
     // on all children at the same address. Except for the MMIO write handle,
     // this loop is the same sequence as the parent above.
-    for (uint32_t i = 0; i < num_child_handles; i += 1)
+    for (i = 0; i < num_child_handles; i += 1)
     {
         buf[0] = 0;
         // Write to a child MMIO space

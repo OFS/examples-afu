@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
     uint64_t buf_pa;
     bool is_ase_sim = false;
     fpga_result r;
+    uint32_t i;
 
     // Find and connect to the accelerators
     r = connect_to_matching_accel(AFU_ACCEL_UUID, &accel_handle, &is_ase_sim);
@@ -171,7 +172,7 @@ int main(int argc, char *argv[])
     // All commands are written to the same CSR space, managed by the
     // parent.
     //
-    for (uint32_t i = 1; i <= num_children; i += 1)
+    for (i = 1; i <= num_children; i += 1)
     {
         buf[0] = 0;
         // Write to the CSR space in the parent, commanding it to use
