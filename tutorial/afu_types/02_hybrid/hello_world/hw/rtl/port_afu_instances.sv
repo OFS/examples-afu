@@ -33,6 +33,7 @@
 
 module port_afu_instances
 #(
+   parameter PG_NUM_LINKS    = 1,
    parameter PG_NUM_PORTS    = 1,
    // PF/VF to which each port is mapped
    parameter pcie_ss_hdr_pkg::ReqHdr_pf_vf_info_t[PG_NUM_PORTS-1:0] PORT_PF_VF_INFO =
