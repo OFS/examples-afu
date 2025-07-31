@@ -100,13 +100,13 @@ module dma_write_engine #(
            else next = IDLE;
          end 
 
-        state[ADDR_SETUP_BIT]:
-            if (!need_more_wlast) next = WAIT_FOR_WR_RSP;
-            else next = SEND_WR_REQ;
-
+         state[ADDR_SETUP_BIT]:
+           if (!need_more_wlast) next = WAIT_FOR_WR_RSP;
+           else next = SEND_WR_REQ;
+ 
          state[SEND_WR_REQ_BIT]:
-            if (dest_mem.awvalid & dest_mem.awready) next = FIFO_EMPTY;
-            else next = SEND_WR_REQ;
+           if (dest_mem.awvalid & dest_mem.awready) next = FIFO_EMPTY;
+           else next = SEND_WR_REQ;
  
          state[FIFO_EMPTY_NOT_READY_BIT]:
             if (packet_complete & (!need_more_wlast)) next = WAIT_FOR_WR_RSP;
@@ -287,8 +287,8 @@ module dma_write_engine #(
          state[NOT_READY_BIT]:begin end
 
          state[RD_FIFO_WR_DEST_BIT]: begin 
-            rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty & (!next[ADDR_SETUP_BIT]);
-            dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty & (!next[ADDR_SETUP_BIT]);
+            rd_fifo_if.rd_en = dest_mem.wready & rd_fifo_if.not_empty & !(wlast_valid & need_more_wlast);
+            dest_mem_wvalid  = dest_mem.wready & rd_fifo_if.not_empty & !(wlast_valid & need_more_wlast);
          end
 
          state[WAIT_FOR_WR_RSP_BIT]: begin 
