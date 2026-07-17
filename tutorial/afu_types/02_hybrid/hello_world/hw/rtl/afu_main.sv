@@ -52,6 +52,7 @@ module afu_main
    input  logic rst_n_100M,
 `else
    input  logic [PG_NUM_PORTS-1:0] port_rst_n,
+   input  logic pr_freeze_to_afu,
 `endif
 
    // PCIe A ports are the standard TLP channels. All host responses
