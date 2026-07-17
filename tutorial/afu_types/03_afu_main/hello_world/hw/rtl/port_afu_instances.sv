@@ -52,6 +52,7 @@ module port_afu_instances
    // port_rst_n at this point also includes rst_n. The two are combined
    // in afu_main().
    input  logic [PG_NUM_PORTS-1:0] port_rst_n,
+   input  logic pr_freeze_to_afu,
 
    // PCIe A ports are the standard TLP channels. All host responses
    // arrive on the RX A port.
