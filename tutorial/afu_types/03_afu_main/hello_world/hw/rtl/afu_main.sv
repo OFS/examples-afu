@@ -47,6 +47,7 @@ module afu_main
    input  logic uclk_usr_div2,
 
    input  logic rst_n,
+   input  logic pr_freeze_to_afu,
 `ifdef PLATFORM_FPGA_FAMILY_S10
    input  logic port_rst_n [PG_NUM_PORTS-1:0],
    input  logic rst_n_100M,
