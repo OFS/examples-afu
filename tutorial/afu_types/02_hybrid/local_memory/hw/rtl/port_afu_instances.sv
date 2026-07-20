@@ -49,6 +49,7 @@ module port_afu_instances
    input  logic uclk_usr_div2,
 
    input  logic rst_n,
+   input logic pr_freeze_to_afu,
    // port_rst_n at this point also includes rst_n. The two are combined
    // in afu_main().
    input  logic [PG_NUM_PORTS-1:0] port_rst_n,
