@@ -91,13 +91,14 @@ module dma_read_engine #(
          end 
 
          state[ADDR_SETUP_BIT]:
-            if (src_mem.arready & ((rd_req_cnt-rlast_cnt)<NUM_PENDING_RDS))
+            if ((rd_req_cnt-rlast_cnt)<NUM_PENDING_RDS)
                next = SEND_RD_REQ; 
             else 
                next = ADDR_SETUP;
 
          state[SEND_RD_REQ_BIT]:
-            if ((rd_req_cnt+1) < num_rd_reqs) next = ADDR_SETUP; 
+            if (!src_mem.arready) next = SEND_RD_REQ;
+            else if ((rd_req_cnt+1) < num_rd_reqs) next = ADDR_SETUP;
             else if ((rd_req_cnt+1) >= num_rd_reqs) next = CP_RSP_TO_FIFO;
             else next = SEND_RD_REQ;
 
